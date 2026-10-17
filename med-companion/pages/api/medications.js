@@ -1,3 +1,4 @@
+import { initialSupply } from "../../lib/supply";
 import { readDB, writeDB, nextId, logAgentActivity } from "../../lib/db";
 import { buildTodaySchedule, previewScheduleForMeds } from "../../lib/schedule";
 import { checkMedicationInteractions } from "../../lib/interactions";
@@ -22,6 +23,8 @@ export default function handler(req, res) {
       return res.status(400).json({ error: "No medications provided" });
     }
 
+    if (medications.some(m => m.currentSupply != null && (!Number.isFinite(m.currentSupply) || m.currentSupply < 0))) return res.status(400).json({error: "Supply must be a non-negative number"});
+    if (medications.some(m => m.pillPhoto && (!/^data:image\/(jpeg|png|webp);base64,/.test(m.pillPhoto) || m.pillPhoto.length > 820000))) return res.status(400).json({error: "Invalid pill photo"});
     const activeExisting = db.medications.filter((m) => !m.retired);
 
     // Duplicate detection: compare candidate meds against active medications
@@ -64,6 +67,12 @@ export default function handler(req, res) {
       duration: m.duration || "",
       doctor: m.doctor || "",
       criticality: m.criticality || "normal",
+      pillColor: m.pillColor || "white",
+      pillShape: m.pillShape || "round",
+      currentSupply: initialSupply(m),
+      initialSupply: initialSupply(m),
+      pillPhoto: m.pillPhoto || "",
+      pillImprint: m.pillImprint || "",
       retired: false,
       createdAt: new Date().toISOString(),
     }));
@@ -97,3 +106,5 @@ export default function handler(req, res) {
 
   res.status(405).json({ error: "Use GET or POST" });
 }
+
+export const config = { api: { bodyParser: { sizeLimit: "8mb" } } };

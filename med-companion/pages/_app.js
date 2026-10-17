@@ -1,3 +1,4 @@
+import Head from "next/head";
 import { useState, useEffect, createContext, useContext } from "react";
 import Link from "next/link";
 import { useRouter } from "next/router";
@@ -21,6 +22,8 @@ export default function App({ Component, pageProps }) {
   const [pinDigits, setPinDigits] = useState(["", "", "", ""]);
   const [pinError, setPinError] = useState("");
   const [pendingRoute, setPendingRoute] = useState(null);
+
+  useEffect(() => { if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(console.error); }, []);
 
   // Load saved preferences on mount
   useEffect(() => {
@@ -129,6 +132,7 @@ export default function App({ Component, pageProps }) {
         setIsUnlocked,
       }}
     >
+      <Head><link rel="manifest" href="/manifest.json" /><meta name="theme-color" content="#2563eb" /></Head>
       <nav className="nav">
         <div className="nav-links">
           <Link href="/" className={`nav-link ${router.pathname === "/" ? "active" : ""}`}>
@@ -151,6 +155,12 @@ export default function App({ Component, pageProps }) {
             className={`nav-link ${router.pathname === "/medications" ? "active" : ""}`}
           >
             {t("medications")}
+          </Link>
+          <Link
+            href="/pillbox"
+            className={`nav-link ${router.pathname === "/pillbox" ? "active" : ""}`}
+          >
+            📦 Pill Box
           </Link>
           <Link
             href="/caregiver"

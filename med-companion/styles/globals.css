@@ -456,3 +456,136 @@ label {
     page-break-inside: avoid;
   }
 }
+
+/* Pill Visual Badges */
+.pill-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--card-subtle);
+  border: 1px solid var(--border);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.pill-shape-icon {
+  display: inline-block;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+.pill-shape-round {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+}
+.pill-shape-oval {
+  width: 22px;
+  height: 14px;
+  border-radius: 40%;
+}
+.pill-shape-capsule {
+  width: 24px;
+  height: 12px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #3b82f6 50%, #fef08a 50%);
+}
+
+/* Routine Buckets */
+.routine-bucket-group {
+  margin-bottom: 24px;
+}
+
+.bucket-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 16px;
+  margin-bottom: 12px;
+}
+.bucket-banner-morning { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+.bucket-banner-afternoon { background: #e0f2fe; color: #075985; border: 1px solid #bae6fd; }
+.bucket-banner-evening { background: #ede9fe; color: #5b21b6; border: 1px solid #ddd6fe; }
+.bucket-banner-night { background: #f1f5f9; color: #334155; border: 1px solid #e2e8f0; }
+
+[data-theme="dark"] .bucket-banner-morning { background: #451a03; color: #fde68a; border-color: #78350f; }
+[data-theme="dark"] .bucket-banner-afternoon { background: #082f49; color: #bae6fd; border-color: #0369a1; }
+[data-theme="dark"] .bucket-banner-evening { background: #2e1065; color: #ddd6fe; border-color: #5b21b6; }
+[data-theme="dark"] .bucket-banner-night { background: #1e293b; color: #cbd5e1; border-color: #334155; }
+
+/* Double-Dose Protection Locked Card */
+.dose-locked-card {
+  background: var(--ok-bg) !important;
+  border: 2px solid var(--ok) !important;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+.dose-locked-card:hover {
+  transform: translateY(-2px);
+}
+
+.pulse-warning {
+  animation: pulseAlert 0.8s infinite alternate;
+}
+@keyframes pulseAlert {
+  from { box-shadow: 0 0 10px rgba(220, 38, 38, 0.4); }
+  to { box-shadow: 0 0 25px rgba(220, 38, 38, 0.85); }
+}
+
+/* Voice Button */
+.btn-voice {
+  background: var(--accent-light);
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.btn-voice:hover {
+  background: var(--accent);
+  color: white;
+}
+
+/* Pill Box Refill Organizer Grid */
+.pillbox-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 10px;
+  overflow-x: auto;
+  padding: 10px 0;
+}
+@media (max-width: 680px) {
+  .pillbox-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.pillbox-col {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 8px;
+  text-align: center;
+}
+
+.pillbox-slot {
+  background: var(--card-subtle);
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  padding: 8px 4px;
+  margin-top: 8px;
+  min-height: 52px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+}

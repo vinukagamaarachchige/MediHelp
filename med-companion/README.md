@@ -1,75 +1,29 @@
-# Medication Companion — MVP
+# Medication Companion
 
-An elder medication companion: paste a prescription, confirm the extracted
-medications, get a daily schedule, mark doses taken/skipped, and have missed
-doses escalate to a caregiver dashboard with an activity log.
+Run `npm install`, `npm run dev`; production: `npm run build` then `npm start`.
 
-## What's in this MVP
+## Feature audit and completion
 
-- Paste prescription text → LLM extraction (Claude) with an **offline
-  fallback parser** if no API key is set, so the app runs out of the box.
-- Editable, human-in-the-loop confirmation screen. Low-confidence fields
-  must be explicitly reviewed before saving (not just warned about).
-- Daily schedule built from medication frequency + your meal/sleep times
-  (edit these in `data/store.json` → `person`, or wire up a settings page
-  later).
-- Elder view: large Taken / Skip buttons.
-- Missed-dose detection: critical meds get a shorter grace window (10 min)
-  than normal meds (30 min). A "Check for missed doses now" button
-  simulates the clock — in production this would run on a timer/cron.
-- Caregiver dashboard: alerts with an agent activity log, acknowledge
-  button, simple today's-adherence percentage.
-- A safety layer (`lib/safety.js`) that blocks directive medical language
-  (e.g. "stop taking", "increase the dose") before it reaches the UI — this
-  is a backstop, use it for any new LLM-generated text (interaction notes,
-  re-plan explanations, caregiver messages).
+Existing work included color/shape tags, TTS buttons, a visual taken-dose card, four routine buckets, a pill-box page and primitive stock tracking. These changes complete photo/imprint capture and editing, speech confirmation, a server-side duplicate-dose lock, routine context, duration-based stock calculation, quantity-aware depletion and five-day caregiver dashboard alerts. Today schedules now regenerate each day.
 
-## What's deliberately NOT in this MVP yet (next layers)
+`/pillbox` follows the same frequency and anchor times as Today. Each highlighted slot receives the prescribed quantity per scheduled dose. Evening and night are combined in the physical box; keep distinct dose times separate when both occur. Loading a box does not count medication as taken. Unsupported quantity units remain untracked rather than assuming one pill.
 
-- Interaction checking against a curated dataset.
-- Appointments and refill tracking.
-- Automatic re-planning after a missed dose.
-- Pharmacist summary export.
-- Real notifications (SMS/WhatsApp/push) — currently all in-app only.
-- Multiple elders per caregiver, Sinhala UI, voice reminders.
-- Photo/image prescription upload (text paste only for now — more
-  reliable, and avoids OCR as a point of failure).
+## Reminders: deployment setup
 
-## Running it
+The manifest and service worker support installation and persistent push notifications. This does not provide guaranteed local exact-time alarms. HTTPS (or localhost), permission and platform support are required. Use the Enable device reminders button on Today. On iOS install to Home Screen first. Test on the actual phone.
 
-```bash
-npm install
-cp .env.example .env.local   # optionally add ANTHROPIC_API_KEY
-npm run dev
-```
+Set environment variables in `.env.local` (never commit credentials):
 
-Then open http://localhost:3000.
+- `REMINDER_SECRET`: long random scheduler token.
+- `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` (e.g. `mailto:you@example.com`). Generate keys with `npx web-push generate-vapid-keys`.
+- Optional WhatsApp: `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_ID`, `WHATSAPP_TO` (consenting elder), `WHATSAPP_API_VERSION`, `WHATSAPP_TEMPLATE`, `WHATSAPP_LANGUAGE` (defaults to `en_US`). The approved template must have one body text parameter containing the reminder. WhatsApp audio notes are not implemented.
 
-- `/` — elder's today view
-- `/prescription/new` — add a prescription
-- `/caregiver` — caregiver dashboard
+Have an external scheduler POST `/api/reminders` every minute with `Authorization: Bearer <REMINDER_SECRET>`. Keep the server running. The job generates missing daily schedules and sends pending reminders due within the last hour. Successful sends are recorded per dose/channel/device; failed sends retry on the next run. Avoid overlapping scheduler executions: the JSON store is for a single process and does not support concurrent writers. Do not run multiple application instances against it.
 
-## Data
+Refill alerts appear on the caregiver dashboard; external caregiver WhatsApp dispatch is not configured. Browser speech recognition needs microphone permission and browser support. Sinhala TTS needs an installed Sinhala voice; availability varies by device. English and Sinhala language hints are supplied to the speech engine.
 
-Everything is stored in `data/store.json`, a single JSON file created
-automatically on first run (see `lib/db.js`). This is intentionally the
-simplest possible persistence — swap it for SQLite/Postgres later without
-touching any other file, since every other file only calls `readDB()` /
-`writeDB()`.
+## Checks and limitations
 
-## Suggested next steps (in order)
+`node tests/safety.cjs` verifies duplicate confirmations, locked taken doses, exact confirmation preservation, quantity subtraction, five-day stock thresholds, duration initialization and bedtime scheduling. `npm run build` checks production compilation.
 
-1. Try the hero flow end to end: paste the example text in
-   `pages/prescription/new.js`'s placeholder, confirm, mark a dose taken,
-   then add another medication with an earlier time and use "Check for
-   missed doses now" to see the escalation + log.
-2. Add a settings page to edit `person` (wake/meal/sleep times) and
-   caregivers instead of hand-editing the JSON file.
-3. Add the interaction dataset (20-30 well-known pairs, JSON file) and a
-   check that runs on every medication save, output always phrased as a
-   pharmacist question (never "stop/start/change").
-4. Replace the "Check for missed doses now" button with a real interval
-   (`setInterval` client-side for a demo, or a cron job / scheduled
-   function for real deployment).
-5. Add a first real notification channel (e.g. a Telegram bot) instead of
-   the in-app-only caregiver dashboard.
+Photos are stored in the local JSON store; each photo must be JPG, PNG or WebP under 600 KB. This local MVP has no production authentication or multi-user isolation. Back up `data/store.json`. Do not use this app as the only medication alarm.

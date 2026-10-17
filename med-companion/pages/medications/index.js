@@ -1,6 +1,8 @@
+import PillDetails from "../../components/PillDetails";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useApp } from "../_app";
+import { getPillColorHex } from "../../lib/pills";
 
 export default function MedicationsList() {
   const { t, showToast } = useApp();
@@ -133,15 +135,42 @@ export default function MedicationsList() {
         >
           <div className="dose-row">
             <div>
-              <div style={{ fontSize: 20, fontWeight: 700 }}>
-                {med.name}
+              <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                <span style={{ fontSize: 20, fontWeight: 700 }}>{med.name}</span>
                 {med.strength && (
-                  <span style={{ fontSize: 16, fontWeight: 500, color: "var(--muted)", marginLeft: 8 }}>
+                  <span style={{ fontSize: 16, fontWeight: 500, color: "var(--muted)" }}>
                     ({med.strength})
                   </span>
                 )}
+                {/* Pill Visual Swatch Badge */}
+                {(() => {
+                  const cMeta = getPillColorHex(med.pillColor);
+                  return (
+                    <div className="pill-badge">
+                      <span
+                        className="pill-shape-icon"
+                        style={{
+                          width: 14,
+                          height: 14,
+                          borderRadius: med.pillShape === "capsule" ? "999px" : med.pillShape === "oval" ? "40%" : "50%",
+                          backgroundColor: cMeta.hex,
+                          border: `1px solid ${cMeta.border}`,
+                        }}
+                      />
+                      <span>{(med.pillColor || "white").toUpperCase()} {med.pillShape || "tablet"}</span>
+                    </div>
+                  );
+                })()}
+
+                {/* Supply remaining pill */}
+                <span
+                  className={`status-pill ${(med.currentSupply ?? 30) <= 5 ? "status-missed" : "status-taken"}`}
+                >
+                  📦 {med.currentSupply ?? 30} left
+                </span>
               </div>
-              <div className="dose-sub" style={{ marginTop: 4 }}>
+
+              <div className="dose-sub" style={{ marginTop: 6 }}>
                 <strong>Dose:</strong> {med.dose || "1 unit"} · <strong>Frequency:</strong> {med.frequency} ·{" "}
                 <strong>Timing:</strong>{" "}
                 {med.timing === "with_food"
@@ -242,7 +271,7 @@ export default function MedicationsList() {
                     value={editingMed.timing}
                     onChange={(e) => setEditingMed({ ...editingMed, timing: e.target.value })}
                   >
-                    <option value="any">Any time</option>
+                    <option value="bedtime">Before bedtime</option><option value="after_lunch">After lunch</option><option value="after_dinner">After dinner</option><option value="any">Any time</option>
                     <option value="with_food">With food</option>
                     <option value="empty_stomach">Empty stomach</option>
                   </select>
@@ -271,9 +300,49 @@ export default function MedicationsList() {
 
               <label>Prescribing Doctor</label>
               <input
-                value={editingMed.doctor}
+                value={editingMed.doctor || ""}
                 onChange={(e) => setEditingMed({ ...editingMed, doctor: e.target.value })}
               />
+
+              <PillDetails med={editingMed} onChange={changes => setEditingMed(prev => ({ ...prev, ...changes }))} />
+              {/* Pill Appearance & Supply in Edit Modal */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, background: "var(--card-subtle)", padding: 12, borderRadius: 8, marginTop: 10 }}>
+                <div>
+                  <label>🎨 Pill Color</label>
+                  <select
+                    value={editingMed.pillColor || "white"}
+                    onChange={(e) => setEditingMed({ ...editingMed, pillColor: e.target.value })}
+                  >
+                    <option value="white">⚪ White</option>
+                    <option value="yellow">🟡 Yellow</option>
+                    <option value="blue">🔵 Blue</option>
+                    <option value="pink">🌸 Pink</option>
+                    <option value="red">🔴 Red</option>
+                    <option value="green">🟢 Green</option>
+                    <option value="orange">🟠 Orange</option>
+                  </select>
+                </div>
+                <div>
+                  <label>💊 Shape</label>
+                  <select
+                    value={editingMed.pillShape || "round"}
+                    onChange={(e) => setEditingMed({ ...editingMed, pillShape: e.target.value })}
+                  >
+                    <option value="round">Round Tablet</option>
+                    <option value="oval">Oval Tablet</option>
+                    <option value="capsule">Capsule</option>
+                  </select>
+                </div>
+                <div>
+                  <label>📦 Pills Remaining</label>
+                  <input
+                    type="number"
+                    value={editingMed.currentSupply ?? 30}
+                    onChange={(e) => setEditingMed({ ...editingMed, currentSupply: parseInt(e.target.value, 10) || 0 })}
+                    min={0}
+                  />
+                </div>
+              </div>
 
               <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 20 }}>
                 <button

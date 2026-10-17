@@ -325,7 +325,7 @@ export default function CaregiverDashboard() {
         >
           <div className="dose-row">
             <div>
-              <strong>{a.medicationName}</strong> — missed dose
+              <strong>{a.medicationName}</strong> — {a.type === "refill_low" ? (a.message || `Low supply: ${a.pillsRemaining} pills remaining`) : "missed dose"}
               {a.criticality === "critical" && (
                 <span className="status-pill status-missed" style={{ marginLeft: 8 }}>
                   critical

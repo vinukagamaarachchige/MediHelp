@@ -1,3 +1,4 @@
+import PillDetails from "../../components/PillDetails";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import { useApp } from "../_app";
@@ -11,6 +12,10 @@ const EMPTY_MED = {
   duration: "",
   doctor: "",
   criticality: "normal",
+  pillColor: "white",
+  pillShape: "round",
+  currentSupply: null,
+  initialSupply: null,
   confidence: 1,
 };
 
@@ -597,7 +602,7 @@ export default function NewPrescription() {
                           value={m.timing}
                           onChange={(e) => updateMed(i, "timing", e.target.value)}
                         >
-                          <option value="any">Any time</option>
+                          <option value="bedtime">Before bedtime</option><option value="after_lunch">After lunch</option><option value="after_dinner">After dinner</option><option value="any">Any time</option>
                           <option value="with_food">With food / after meals</option>
                           <option value="empty_stomach">Empty stomach / before meals</option>
                         </select>
@@ -631,6 +636,50 @@ export default function NewPrescription() {
                       onChange={(e) => updateMed(i, "doctor", e.target.value)}
                       placeholder="e.g. Dr. Silva"
                     />
+
+                    <PillDetails med={m} onChange={changes => Object.entries(changes).forEach(([key, value]) => updateMed(i, key, value))} />
+                    {/* Pill Appearance Tagging & Supply Input */}
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, background: "var(--card-subtle)", padding: 10, borderRadius: 8, marginBottom: 10 }}>
+                      <div>
+                        <label>🎨 Pill Color</label>
+                        <select
+                          value={m.pillColor || "white"}
+                          onChange={(e) => updateMed(i, "pillColor", e.target.value)}
+                        >
+                          <option value="white">⚪ White</option>
+                          <option value="yellow">🟡 Yellow</option>
+                          <option value="blue">🔵 Blue</option>
+                          <option value="pink">🌸 Pink</option>
+                          <option value="red">🔴 Red</option>
+                          <option value="green">🟢 Green</option>
+                          <option value="orange">🟠 Orange</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label>💊 Shape</label>
+                        <select
+                          value={m.pillShape || "round"}
+                          onChange={(e) => updateMed(i, "pillShape", e.target.value)}
+                        >
+                          <option value="round">Round Tablet</option>
+                          <option value="oval">Oval Tablet</option>
+                          <option value="capsule">Capsule</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label>📦 Bottle Supply</label>
+                        <input
+                          type="number"
+                          value={m.currentSupply ?? ""}
+                          onChange={(e) => {
+                            const val = e.target.value === "" ? null : Number(e.target.value);
+                            updateMed(i, "currentSupply", val);
+                            updateMed(i, "initialSupply", val);
+                          }}
+                          min={1}
+                        />
+                      </div>
+                    </div>
 
                     {lowConfidence && (
                       <label style={{ fontSize: 14, marginTop: 8, display: "flex", alignItems: "center" }}>

@@ -1,5 +1,5 @@
-import { readDB } from "../../lib/db";
-import { timesPerDay, anchorTimes } from "../../lib/schedule";
+import { readDB, writeDB } from "../../lib/db";
+import { timesPerDay, anchorTimes, buildTodaySchedule } from "../../lib/schedule";
 
 function isSameDay(d1, d2) {
   return (
@@ -20,6 +20,11 @@ export default function handler(req, res) {
   const medById = Object.fromEntries(db.medications.map((m) => [m.id, m]));
   const activeMeds = db.medications.filter((m) => !m.retired);
   const now = new Date();
+  const missingMeds = activeMeds.filter(m => !db.doses.some(d => d.medicationId === m.id && isSameDay(new Date(d.scheduledTime), now)));
+  if (missingMeds.length) {
+    db.doses.push(...buildTodaySchedule(db.person, missingMeds));
+    writeDB(db);
+  }
 
   // If 7-day adherence history requested for the caregiver chart
   if (req.query.range === "history" || req.query.range === "adherence") {

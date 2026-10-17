@@ -1,3 +1,4 @@
+import { daysRemaining } from "../../../lib/supply";
 import { readDB, writeDB, logAgentActivity } from "../../../lib/db";
 import { checkMedicationInteractions } from "../../../lib/interactions";
 
@@ -19,6 +20,8 @@ export default function handler(req, res) {
   // Update medication fields
   if (req.method === "PUT" || req.method === "PATCH") {
     const updates = req.body || {};
+    if (updates.pillPhoto && (!/^data:image\/(jpeg|png|webp);base64,/.test(updates.pillPhoto) || updates.pillPhoto.length > 820000)) return res.status(400).json({error: "Invalid pill photo"});
+    if (updates.currentSupply !== undefined && updates.currentSupply !== null && (!Number.isFinite(updates.currentSupply) || updates.currentSupply < 0)) return res.status(400).json({error: "Supply must be a non-negative number"});
     const updated = {
       ...existing,
       ...updates,
@@ -26,12 +29,22 @@ export default function handler(req, res) {
       updatedAt: new Date().toISOString(),
     };
 
+    // If supply replenished (> 5), acknowledge any active refill alerts for this medication
+    if (typeof updates.currentSupply === "number" && daysRemaining(updated) > 5) {
+      db.alerts.forEach((a) => {
+        if (a.type === "refill_low" && (a.medicationId === updated.id || (!a.medicationId && a.medicationName === updated.name)) && !a.acknowledged) {
+          a.acknowledged = true;
+          a.acknowledgedAt = new Date().toISOString();
+        }
+      });
+    }
+
     db.medications[medIndex] = updated;
 
     logAgentActivity(
       db,
       "replan",
-      `Medication updated: ${updated.name} (Frequency: ${updated.frequency}, Status: ${
+      `Medication updated: ${updated.name} (Supply: ${updated.currentSupply ?? 30} pills, Status: ${
         updated.retired ? "Retired" : "Active"
       })`,
       { medicationId: id, updates }
