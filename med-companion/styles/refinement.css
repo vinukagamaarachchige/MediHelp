@@ -1,0 +1,363 @@
+/* Shared visual language: warm paper, deep evergreen, clear functional states. */
+:root {
+  --bg: #f6f5f0; --card: #fffefa; --card-subtle: #f0f1eb;
+  --text: #263c36; --muted: #596b64; --accent: #205c49; --accent-light: #eaf0e8;
+  --ok: #246048; --ok-bg: #edf4eb; --warn: #845019; --warn-bg: #fbf2df;
+  --danger: #a43832; --danger-bg: #fbefec; --border: #dce1d7;
+  --input-bg: #fffefa; --shadow: 0 3px 16px #283d3504;
+}
+[data-theme="dark"] {
+  --bg: #15221e; --card: #1d2e27; --card-subtle: #263a30;
+  --text: #edf2e8; --muted: #b8c7ba; --accent: #a5d4b5; --accent-light: #2c4537;
+  --ok: #b4dabb; --ok-bg: #243e2c; --warn: #e9cb96; --warn-bg: #403725;
+  --danger: #f0b5ac; --danger-bg: #442d2a; --border: #3d5144; --input-bg: #1d2e27;
+  --shadow: none;
+}
+body { font-family: "Segoe UI", "Nirmala UI", system-ui, sans-serif; font-size: calc(17px * var(--font-scale, 1)); line-height: 1.6; -webkit-font-smoothing: antialiased; }
+button, input, select, textarea { font: inherit; }
+button, a, summary { -webkit-tap-highlight-color: transparent; }
+button svg, a svg, summary svg { flex-shrink: 0; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 5px; }
+button:disabled { cursor: not-allowed; }
+a { color: var(--accent); }
+h1 { font-family: Georgia, "Nirmala UI", serif; font-weight: 400; letter-spacing: -1.1px; line-height: 1.2; font-size: calc(clamp(32px, 4vw, 44px) * var(--font-scale, 1)); margin: 0 0 12px; }
+h2 { font-weight: 600; font-size: calc(23px * var(--font-scale, 1)); letter-spacing: -.4px; }
+h3 { font-weight: 600; }
+.container { max-width: 1020px; padding: 48px 32px 80px; }
+.app-header { max-width: 1200px; margin: auto; padding: 25px 36px 23px; display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+.brand { display: flex; gap: 13px; align-items: center; text-decoration: none; color: var(--text); font-family: Georgia, serif; font-size: calc(27px * var(--font-scale, 1)); line-height: 1.1; }
+.brand-symbol { width: 45px; height: 49px; display: grid; place-items: center; border: 1px solid var(--accent); border-radius: 16px 16px 20px 20px; color: var(--accent); }
+.brand small { display: block; font: calc(12px * var(--font-scale, 1))/1.5 "Segoe UI", sans-serif; color: var(--muted); letter-spacing: .3px; margin-top: 5px; }
+.nav { max-width: 1128px; margin: auto; padding: 0; background: transparent; border-bottom: 1px solid var(--border); box-shadow: none; gap: 12px; }
+.nav-links { gap: 8px; }
+.nav-link { display: flex; align-items: center; justify-content: center; gap: 9px; min-height: 58px; padding: 14px 20px; border-radius: 0; font-size: calc(16px * var(--font-scale, 1)); font-weight: 600; color: var(--muted); border-bottom: 2px solid transparent; }
+.nav-link:hover { background: var(--accent-light); }
+.nav-link.active { color: var(--accent); background: transparent; border-bottom-color: var(--accent); }
+.nav-caption { font-size: calc(13px * var(--font-scale, 1)); color: var(--muted); }
+.nav-btn { min-height: 44px; min-width: 44px; background: transparent; border-color: var(--border); padding: 8px 13px; font-size: calc(15px * var(--font-scale, 1)); display: inline-flex; align-items: center; justify-content: center; border-radius: 9px; }
+.more-menu { position: relative; }
+.more-menu summary { cursor: pointer; list-style: none; }
+.more-menu summary::-webkit-details-marker { display: none; }
+.more-panel { position: absolute; top: 63px; right: 0; width: 255px; background: var(--card); padding: 8px; border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 12px 35px #152b2020; z-index: 30; }
+.more-panel a, .more-panel button { display: flex; justify-content: space-between; align-items: center; text-align: left; width: 100%; padding: 12px 16px; min-height: 48px; color: var(--text); text-decoration: none; border: 0; background: none; border-radius: 7px; font-size: calc(16px * var(--font-scale, 1)); cursor: pointer; }
+.more-panel a:hover, .more-panel button:hover { background: var(--accent-light); }
+.skip-link { position: fixed; top: -100px; left: 20px; z-index: 100; background: var(--card); padding: 14px; }
+.skip-link:focus { top: 10px; }
+.page-heading { display: flex; justify-content: space-between; align-items: center; gap: 22px; margin-bottom: 30px; }
+.eyebrow { font-size: calc(12px * var(--font-scale, 1)); letter-spacing: 1.2px; font-weight: 600; text-transform: uppercase; color: var(--muted); margin: 0 0 10px; }
+.page-intro { color: var(--muted); font-size: calc(17px * var(--font-scale, 1)); margin: 0; }
+.type-toggle { flex-shrink: 0; font-size: calc(15px * var(--font-scale, 1)); }
+.type-symbol { font-family: Georgia, serif; font-size: calc(22px * var(--font-scale, 1)); }
+.btn { min-height: 50px; border-radius: 9px; padding: 12px 20px; font-size: calc(17px * var(--font-scale, 1)); font-weight: 600; text-decoration: none; line-height: 1.4; transition: background .15s, border-color .15s; }
+.btn:active { transform: none; }
+.btn-primary, .btn-taken { background: #205c49; color: #fff; border: 1px solid #205c49; }
+.btn-primary:hover, .btn-taken:hover { background: #164937; }
+.btn-secondary { background: transparent; border: 1px solid var(--border); color: var(--text); }
+.btn-secondary:hover { background: var(--card-subtle); border-color: var(--muted); }
+.card { border-radius: 14px; padding: 26px; box-shadow: var(--shadow); margin-bottom: 14px; }
+.daily-overview { border: 1px solid var(--border); background: var(--accent-light); border-radius: 14px; display: grid; grid-template-columns: .95fr 1.2fr; padding: 26px 30px; gap: 32px; margin-bottom: 34px; }
+.overview-main { padding-right: 30px; border-right: 1px solid var(--border); }
+.overview-main p { margin: 0 0 14px; line-height: 1.2; }
+.overview-main strong { font-size: calc(34px * var(--font-scale, 1)); font-weight: 500; }
+.overview-main p span { color: var(--muted); font-size: calc(17px * var(--font-scale, 1)); }
+.progress-track { height: 5px; border-radius: 20px; background: var(--border); max-width: 290px; overflow: hidden; }
+.progress-track span { height: 100%; background: var(--accent); display: block; border-radius: inherit; }
+.overview-next { display: flex; align-items: center; gap: 18px; }
+.overview-icon { width: 53px; height: 53px; display: grid; place-items: center; background: var(--card); border-radius: 50%; color: var(--accent); flex-shrink: 0; }
+.overview-next .eyebrow { font-size: calc(11px * var(--font-scale, 1)); }
+.overview-next p { font-size: calc(22px * var(--font-scale, 1)); margin: 3px 0 0; font-weight: 600; line-height: 1.4; }
+.overview-detail { color: var(--muted); font-size: calc(15px * var(--font-scale, 1)); }
+.schedule-toolbar { display: flex; justify-content: space-between; align-items: center; margin: 0 0 15px; gap: 16px; }
+.schedule-toolbar h2 { margin: 0; }
+.view-toggle { border: 0; background: transparent; color: var(--accent); font-size: calc(15px * var(--font-scale, 1)); min-height: 44px; text-decoration: underline; text-underline-offset: 4px; cursor: pointer; }
+.routine-bucket-group { margin-bottom: 28px; }
+.bucket-banner { padding: 12px 0; border: none; border-radius: 0; margin-bottom: 8px; }
+.bucket-banner[class*="bucket-banner-"] { background: transparent; color: var(--text); border: none; }
+.bucket-title { display: flex; align-items: center; gap: 10px; font-size: calc(18px * var(--font-scale, 1)); }
+.bucket-title svg { color: var(--muted); }
+.bucket-count { color: var(--muted); font-size: calc(14px * var(--font-scale, 1)); font-weight: 400; }
+.medication-card { padding: 0; overflow: hidden; }
+.medication-card-top { padding: 16px 26px 0; display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.routine-label { color: var(--accent); font-size: calc(15px * var(--font-scale, 1)); font-weight: 600; }
+.scheduled-time { font-size: calc(15px * var(--font-scale, 1)); color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.medication-identity { display: flex; align-items: center; gap: 20px; padding: 20px 26px 23px; }
+.pill-portrait { width: 74px; height: 74px; flex-shrink: 0; background: var(--card-subtle); display: grid; place-items: center; border-radius: 14px; border: 1px solid var(--border); }
+.pill-portrait img { width: 100%; height: 100%; object-fit: contain; border-radius: inherit; }
+.pill-portrait .pill-shape-round { width: 31px; height: 31px; }
+.pill-portrait .pill-shape-oval { width: 39px; height: 25px; }
+.pill-portrait .pill-shape-capsule { width: 43px; height: 22px; background-image: none; }
+.pill-shape-icon { box-shadow: inset 0 -3px 4px #0000000a, 0 2px 3px #0000000d; }
+.medication-copy { flex: 1; min-width: 0; }
+.dose-name { font-size: calc(26px * var(--font-scale, 1)); font-weight: 600; letter-spacing: -.5px; line-height: 1.35; margin: 0; overflow-wrap: anywhere; }
+.dose-sub { font-size: calc(18px * var(--font-scale, 1)); margin: 3px 0 0; color: var(--text); }
+.appearance-label { margin: 3px 0 0; font-size: calc(15px * var(--font-scale, 1)); color: var(--muted); text-transform: capitalize; }
+.dose-actions { padding: 17px 26px; background: var(--card-subtle); border-top: 1px solid var(--border); display: flex; gap: 12px; align-items: center; }
+.dose-actions .btn-taken { min-width: 170px; }
+.skip-dose { background: transparent; color: var(--muted); margin-left: auto; min-width: 70px; }
+.skip-dose:hover { color: var(--text); background: var(--border); }
+.dose-locked-card { background: var(--card) !important; border: 1px solid var(--border) !important; cursor: default; }
+.dose-locked-card:hover { transform: none; }
+.taken-symbol { color: var(--ok); width: 44px; height: 44px; background: var(--ok-bg); display: grid; place-items: center; border-radius: 50%; }
+.taken-receipt { padding: 17px 26px; background: var(--ok-bg); border-top: 1px solid var(--border); display: flex; align-items: center; gap: 16px; justify-content: space-between; }
+.taken-receipt strong { display: flex; align-items: center; gap: 8px; color: var(--ok); font-size: calc(16px * var(--font-scale, 1)); }
+.taken-receipt p { margin: 4px 0 0; font-size: calc(15px * var(--font-scale, 1)); color: var(--text); }
+
+.dose-state-line { padding: 0 26px 20px; }
+.status-pill { text-transform: none; letter-spacing: 0; font-size: calc(14px * var(--font-scale, 1)); font-weight: 600; padding: 4px 12px; }
+.status-pending, .status-upcoming { background: var(--card-subtle); color: var(--muted); }
+.critical-note { color: var(--danger); font-size: calc(15px * var(--font-scale, 1)); margin: 0; padding: 8px 26px; border-top: 1px solid var(--border); }
+.supply-notice { display: flex; gap: 20px; justify-content: space-between; align-items: center; padding: 20px 24px; background: var(--warn-bg); border: 1px solid var(--border); border-radius: 12px; margin-bottom: 28px; color: var(--warn); }
+.supply-notice p { margin: 2px 0 0; font-size: calc(15px * var(--font-scale, 1)); }
+.text-link { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; min-height: 44px; font-size: calc(15px * var(--font-scale, 1)); text-underline-offset: 4px; }
+.today-footer { margin-top: 38px; }
+.care-note { font-size: calc(14px * var(--font-scale, 1)); line-height: 1.7; color: var(--muted); max-width: 760px; }
+.support-details { border-top: 1px solid var(--border); padding: 18px 0; margin-top: 22px; }
+.support-details summary { cursor: pointer; color: var(--muted); min-height: 44px; padding: 8px 0; font-size: calc(16px * var(--font-scale, 1)); }
+.support-details .card { margin-top: 15px; }
+.missed-check { padding: 8px 0; font-size: calc(16px * var(--font-scale, 1)); }
+.empty-schedule { text-align: center; padding: 58px 30px; margin-top: 26px; }
+.empty-schedule h2 { margin-top: 20px; }
+.empty-schedule p { color: var(--muted); margin-bottom: 25px; }
+.empty-icon { display: inline-grid; place-items: center; width: 85px; height: 85px; border-radius: 50%; background: var(--accent-light); color: var(--accent); }
+fieldset { border: 1px solid var(--border); border-radius: 10px; padding: 18px; }
+legend { color: var(--muted); padding: 0 8px; font-size: calc(15px * var(--font-scale, 1)); }
+label { font-size: calc(16px * var(--font-scale, 1)); margin-bottom: 7px; }
+textarea, input, select { font-size: calc(17px * var(--font-scale, 1)); min-height: 50px; border-radius: 8px; padding: 12px 14px; }
+input[type="checkbox"], input[type="radio"] { min-height: 24px; width: 24px; accent-color: var(--accent); }
+.badge-pro { background: var(--accent-light); color: var(--accent); font-weight: 600; }
+.tab-btn { min-height: 50px; font-size: calc(17px * var(--font-scale, 1)); }
+.disclaimer { background: var(--card-subtle); border-color: var(--border); color: var(--muted); font-size: calc(15px * var(--font-scale, 1)); }
+.modal-overlay { background: #15241db3; padding: 20px; }
+.modal-content { border: 1px solid var(--border); border-radius: 18px; max-height: calc(100dvh - 40px); overflow-y: auto; }
+.safety-dialog { max-width: 480px; padding: 34px; text-align: left; }
+.safety-dialog-icon { color: var(--ok); background: var(--ok-bg); display: inline-grid; place-items: center; width: 60px; height: 60px; border-radius: 50%; }
+.safety-dialog h2 { margin-top: 20px; }
+.safety-medication { font-size: calc(23px * var(--font-scale, 1)); font-weight: 600; }
+.safety-facts { border-block: 1px solid var(--border); padding: 8px 0; }
+.safety-facts p { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; font-size: calc(16px * var(--font-scale, 1)); }
+.safety-dialog .btn { width: 100%; margin-top: 12px; }
+.pulse-warning, .toast-icon { animation: none; }
+.pillbox-slot { font-size: calc(14px * var(--font-scale, 1)); min-height: 65px; }
+.simple-mode .card { padding: 0; border-width: 1px; border-radius: 14px; }
+.simple-mode .dose-name { font-size: calc(34px * var(--font-scale, 1)); }
+.simple-mode .dose-sub { font-size: calc(24px * var(--font-scale, 1)); }
+.simple-mode .routine-label, .simple-mode .scheduled-time, .simple-mode .appearance-label, .simple-mode .taken-receipt p { font-size: calc(20px * var(--font-scale, 1)); }
+.simple-mode .btn { font-size: calc(22px * var(--font-scale, 1)); min-height: 60px; padding: 16px 22px; border-radius: 9px; border-width: 1px; }
+.simple-mode .empty-schedule { padding: 45px 25px; }
+@media (max-width: 800px) {
+ .app-header { padding: 20px 24px; } .nav { margin: 0 24px; } .nav-caption { display: none; }
+ .container { padding: 32px 24px 110px; } .page-heading { align-items: flex-start; }
+ .daily-overview { gap: 22px; padding: 24px; } .overview-main { padding-right: 20px; }
+ .read-dose { width: 46px; padding: 12px; } .read-dose span { display: none; }
+}
+@media (max-width: 560px) {
+ body { font-size: calc(17px * var(--font-scale, 1)); } .app-header { padding: 18px 20px; border-bottom: 1px solid var(--border); }
+ .brand { font-size: calc(24px * var(--font-scale, 1)); gap: 10px; } .brand small { font-size: calc(10px * var(--font-scale, 1)); } .brand-symbol { width: 35px; height: 41px; border-radius: 12px; }
+ .nav-controls { gap: 6px; } .theme-toggle { border: none; padding: 6px; min-width: 36px; }
+ .nav { position: fixed; bottom: 0; left: 0; right: 0; margin: 0; padding: 0 10px env(safe-area-inset-bottom); background: var(--card); border-top: 1px solid var(--border); z-index: 50; }
+ .nav-links { width: 100%; justify-content: space-around; gap: 0; flex-wrap: nowrap; } .nav-link { min-height: 70px; flex-direction: column; gap: 3px; padding: 10px 13px; font-size: calc(13px * var(--font-scale, 1)); border-bottom: none; border-top: 2px solid transparent; }
+ .nav-link.active { border-top-color: var(--accent); background: var(--accent-light); }
+ .more-panel { top: auto; bottom: 80px; right: 0; }
+ .container { padding: 28px 18px 110px; } h1 { font-size: calc(34px * var(--font-scale, 1)); }
+ .page-heading { flex-wrap: wrap; gap: 16px; margin-bottom: 24px; } .page-intro { font-size: calc(16px * var(--font-scale, 1)); }
+ .type-toggle { min-height: 44px; padding: 8px 13px; font-size: calc(14px * var(--font-scale, 1)); }
+ .daily-overview { grid-template-columns: 1fr; padding: 22px; gap: 21px; margin-bottom: 28px; }
+ .overview-main { border-right: none; padding: 0 0 20px; border-bottom: 1px solid var(--border); }
+ .progress-track { max-width: none; } .overview-next { gap: 15px; } .overview-next p { font-size: calc(21px * var(--font-scale, 1)); }
+ .schedule-toolbar { gap: 8px; } .schedule-toolbar h2 { font-size: calc(21px * var(--font-scale, 1)); } .view-toggle { font-size: calc(14px * var(--font-scale, 1)); padding-right: 0; }
+ .medication-card-top { padding: 17px 19px 0; } .medication-identity { gap: 14px; padding: 18px 19px 22px; flex-wrap: wrap; }
+ .pill-portrait { width: 62px; height: 66px; border-radius: 12px; } .dose-name { font-size: calc(24px * var(--font-scale, 1)); } .dose-sub { font-size: calc(18px * var(--font-scale, 1)); } .appearance-label { font-size: calc(14px * var(--font-scale, 1)); }
+ .medication-copy { flex: 1 1 calc(100% - 90px); }
+ .read-dose { width: auto; margin-left: 76px; padding: 10px 14px; } .read-dose span { display: inline; }
+ .dose-actions { padding: 15px 19px; display: grid; grid-template-columns: 1fr auto; gap: 10px; }
+ .dose-actions .btn-taken { min-width: 0; grid-column: 1 / -1; min-height: 56px; font-size: calc(20px * var(--font-scale, 1)); }
+  .skip-dose { font-size: calc(16px * var(--font-scale, 1)); }
+ .taken-symbol { display: none; }
+ .taken-receipt { padding: 17px 19px; flex-wrap: wrap; } 
+ .supply-notice { flex-wrap: wrap; gap: 8px; padding: 18px; } .bucket-count { font-size: calc(13px * var(--font-scale, 1)); }
+ .simple-mode .dose-name { font-size: calc(30px * var(--font-scale, 1)); } .simple-mode .dose-sub { font-size: calc(22px * var(--font-scale, 1)); }
+ .simple-mode .btn { font-size: calc(20px * var(--font-scale, 1)); } .simple-mode .scheduled-time { font-size: calc(18px * var(--font-scale, 1)); }
+ .toast-container { bottom: 90px; left: 16px; right: 16px; max-width: none; }
+ .safety-dialog { padding: 25px; } .pillbox-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
+@media print { .app-header, .nav, .today-footer, .type-toggle, .view-toggle, .dose-actions { display: none !important; } }
+
+/* Familiar visual cues stay beside readable labels in both languages. */
+.recognition-emoji { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; line-height: 1.2; font-family: "Segoe UI Emoji", "Apple Color Emoji", sans-serif; }
+.menu-label { display: inline-flex; align-items: center; gap: 12px; }
+.read-dose > .recognition-emoji { display: inline-flex; }
+@media (max-width: 560px) { .skip-dose { min-width: 88px; } }
+
+/* All destinations are visible when there is room for comfortable targets. */
+.desktop-nav-link { display: none; }
+@media (min-width: 1200px) {
+ .nav { max-width: 1280px; padding-inline: 20px; }
+ .nav-links { width: 100%; gap: 2px; flex-wrap: wrap; }
+ .nav-link { padding-inline: 13px; gap: 7px; }
+ .desktop-nav-link { display: inline-flex; }
+ .more-menu, .nav-caption { display: none; }
+}
+
+/* Short, purposeful motion. Dose cards and their tap targets stay in place. */
+@media (prefers-reduced-motion: no-preference) {
+ .btn, .nav-btn, .nav-link, .view-toggle {
+   transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease, box-shadow 160ms ease, transform 100ms ease;
+ }
+ .btn:not(:disabled):active, .nav-btn:not(:disabled):active {
+   transform: translateY(1px);
+ }
+ .progress-track span { transition: width 420ms cubic-bezier(.22, 1, .36, 1); }
+ .more-menu[open] .more-panel { transform-origin: top right; animation: companion-menu-in 160ms ease-out; }
+ .support-details[open] > :not(summary) { animation: companion-reveal 180ms ease-out; }
+ .modal-overlay { animation: companion-reveal 140ms ease-out; }
+ .modal-content { animation: companion-dialog-in 180ms ease-out; }
+ .taken-receipt { animation: companion-reveal 220ms ease-out; }
+ @media (hover: hover) and (pointer: fine) {
+   .btn:not(:disabled):hover, .nav-btn:not(:disabled):hover {
+     box-shadow: 0 2px 6px #15241d10;
+   }
+ }
+ @media (max-width: 560px) { .more-menu[open] .more-panel { transform-origin: bottom right; } }
+}
+@keyframes companion-menu-in {
+ from { opacity: .6; transform: scale(.98); }
+ to { opacity: 1; transform: scale(1); }
+}
+@keyframes companion-reveal { from { opacity: .65; } to { opacity: 1; } }
+@keyframes companion-dialog-in {
+ from { opacity: .7; transform: translateY(5px); }
+ to { opacity: 1; transform: translateY(0); }
+}
+/* Selected state is visible even when animations are disabled. */
+.type-toggle[aria-pressed="true"] { background: var(--accent-light); border-color: var(--accent); }
+
+/* Gentle expansion on hover and as cards cross the viewport midpoint. */
+@media (prefers-reduced-motion: no-preference) {
+ main .card, .daily-overview {
+   transition: transform 240ms cubic-bezier(.22, 1, .36, 1), box-shadow 240ms ease, border-color 180ms ease;
+   transform-origin: center;
+ }
+ main .card.at-screen-center, .daily-overview.at-screen-center {
+   transform: scale(1.006);
+   box-shadow: 0 5px 18px #15241d0b;
+ }
+ @media (hover: hover) and (pointer: fine) {
+   main .card:not(.modal-content):hover, .daily-overview:hover {
+     transform: scale(1.012);
+     box-shadow: 0 7px 22px #15241d10;
+   }
+   .btn:not(:disabled):hover,
+   .nav-btn:not(:disabled):hover, .nav-link:hover, .view-toggle:hover {
+     transform: scale(1.025);
+   }
+   .btn:not(:disabled):active, .nav-btn:not(:disabled):active {
+     transform: scale(.99);
+   }
+ }
+}
+
+/* Accessibility controls and safety information. */
+.critical-note { display: flex; align-items: center; gap: 10px; background: #fff0cc; color: #693900; border-top: 1px solid #dec48d; font-size: calc(17px * var(--font-scale, 1)); }
+[data-theme="dark"] .critical-note { background: #4a3620; color: #ffe0a3; border-color: #87683d; }
+.warning-triangle { font-size: 1.35em; line-height: 1.2; flex-shrink: 0; }
+[data-theme="dark"] .scheduled-time, [data-theme="dark"] .appearance-label, [data-theme="dark"] .overview-detail, [data-theme="dark"] .page-intro { color: #c2d0c5; }
+.banner-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.overdue-banner, .offline-snapshot { padding: 22px; margin-bottom: 24px; border-radius: 12px; background: var(--warn-bg); border: 1px solid var(--warn); color: var(--text); }
+.overdue-banner h2 { margin: 0; }
+.offline-snapshot { font-size: calc(16px * var(--font-scale, 1)); }
+.connectivity-banner { background: var(--warn-bg); border: 1px solid var(--warn); padding: 15px 20px; border-radius: 10px; margin: 20px 0; }
+.install-banner { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 22px; border: 1px solid var(--border); border-radius: 12px; background: var(--accent-light); margin-top: 24px; }
+.install-banner > div { flex: 1 1 250px; }
+.install-banner p { margin: 4px 0 0; }
+.medication-details-trigger { display: inline; padding: 0; color: inherit; font: inherit; text-align: left; border: 0; background: transparent; cursor: pointer; overflow-wrap: anywhere; }
+.medication-details-trigger:hover { text-decoration: underline; text-underline-offset: 5px; }
+.details-hint { font-size: .65em; color: var(--muted); margin-left: 10px; vertical-align: middle; }
+.accessible-dialog { position: relative; text-align: left; max-width: 640px; width: 100%; padding: 30px; }
+.dialog-close { float: right; margin: 0 0 10px 15px; min-width: 46px; padding: 8px; }
+.medicine-detail-photo { width: 150px; max-height: 150px; object-fit: contain; display: block; }
+.medicine-facts { overflow-wrap: anywhere; }
+.medicine-facts dt { font-weight: 600; margin-top: 14px; }
+.medicine-facts dd { margin-left: 0; color: var(--muted); }
+.medicine-instruction { border-top: 1px solid var(--border); margin-top: 18px; }
+.medicine-instruction h3 { margin-bottom: 5px; }
+.medicine-instruction p { margin-top: 4px; }
+.instruction-attribution { color: var(--muted); font-size: calc(15px * var(--font-scale, 1)); }
+.text-settings h2 { margin-top: 0; }
+.text-settings input[type="range"] { width: 100%; accent-color: var(--accent); padding: 0; cursor: pointer; }
+.scale-labels { display: flex; justify-content: space-between; color: var(--muted); }
+.scale-preview { padding: 20px; background: var(--card-subtle); border-radius: 10px; }
+.locked-area .btn { margin: 10px 10px 0 0; }
+.pin-inputs { flex-wrap: wrap; }
+.pin-digit { width: calc(48px * var(--font-scale, 1)); height: auto; min-height: 58px; }
+main, .medication-card, .medication-copy, .daily-overview > *, .nav-links > * { min-width: 0; }
+main p, main h1, main h2, main h3, main button, .nav-link { overflow-wrap: anywhere; }
+:root[data-large-text="true"] .daily-overview { grid-template-columns: minmax(0,1fr); }
+:root[data-large-text="true"] .overview-main { border-right: 0; border-bottom: 1px solid var(--border); padding-bottom: 22px; }
+:root[data-large-text="true"] .medication-identity { flex-wrap: wrap; }
+:root[data-large-text="true"] .medication-copy { flex: 1 1 calc(100% - 110px); }
+:root[data-large-text="true"] .read-dose { margin-left: 0; width: auto; }
+:root[data-large-text="true"] .read-dose span { display: inline-flex; }
+:root[data-large-text="true"] .dose-actions { display: flex; flex-wrap: wrap; }
+:root[data-large-text="true"] .dose-actions .btn { min-width: 0; flex: 1 1 100%; }
+:root[data-large-text="true"] .taken-receipt, :root[data-large-text="true"] .page-heading { flex-wrap: wrap; }
+:root[data-large-text="true"] .nav-caption { display: none; }
+:root[data-large-text="true"] main [style*="grid-template-columns"] { grid-template-columns: minmax(0,1fr) !important; }
+@media (max-width: 560px) {
+ main [style*="grid-template-columns"] { grid-template-columns: minmax(0,1fr) !important; }
+ .accessible-dialog { padding: 22px; }
+ .read-dose { margin-left: 0; }
+ :root[data-large-text="true"] .nav-links { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); }
+ :root[data-large-text="true"] .nav-link { min-height: 74px; line-height: 1.25; flex-direction: row; font-size: calc(12px * var(--font-scale, 1)); padding: 10px 7px; }
+ :root[data-large-text="true"] .container { padding-bottom: 260px; }
+ :root[data-large-text="true"] .more-panel { bottom: 86px; max-height: 65dvh; overflow-y: auto; width: min(90vw,360px); }
+ :root[data-large-text="true"] .brand small { display: none; }
+ :root[data-large-text="true"] .app-header { flex-wrap: wrap; }
+ :root[data-large-text="true"] .toast-container { bottom: 190px; }
+}
+
+.skip-link { top: 0; transform: translateY(-200%); }
+.skip-link:focus { top: 10px; transform: translateY(0); }
+@media (max-width: 560px) {
+ :root[data-large-text="true"] .medication-copy { flex-basis: 100%; }
+ :root[data-large-text="true"] .medication-card-top { flex-wrap: wrap; }
+}
+
+/* Native-feeling centered feedback: only opacity and position animate. */
+.toast-container {
+ position: fixed; bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+ left: 50%; right: auto; transform: translateX(-50%);
+ width: max-content; max-width: min(640px, calc(100vw - 32px));
+ z-index: 1000; pointer-events: none;
+}
+.app-toast {
+ display: flex; align-items: center; gap: 10px;
+ background-color: #2d3748; color: #fff;
+ padding: 12px 24px; border-radius: 30px;
+ font-size: calc(14px * var(--font-scale, 1)); line-height: 1.55;
+ box-shadow: 0 4px 12px rgba(0,0,0,.15);
+ opacity: 0; transform: translateY(20px);
+ transition: opacity .3s ease, transform .3s ease;
+ overflow-wrap: anywhere;
+}
+.app-toast.show { opacity: 1; transform: translateY(0); }
+.toast-feedback-icon { flex-shrink: 0; font-size: 1.2em; }
+.dose-completed {
+ border-left: 6px solid #48bb78 !important;
+ background-color: #f7faf8 !important;
+}
+[data-theme="dark"] .dose-completed { background-color: var(--card) !important; border-left-color: #88bd98 !important; }
+.dose-completed .pill-portrait { opacity: .75; }
+.dose-status-button { flex-shrink: 0; font-size: calc(15px * var(--font-scale, 1)); }
+@media (max-width: 560px) {
+ .toast-container { bottom: calc(90px + env(safe-area-inset-bottom, 0px)); }
+ :root[data-large-text="true"] .toast-container { bottom: calc(190px + env(safe-area-inset-bottom, 0px)); }
+ .dose-actions { display: flex; flex-wrap: wrap; }
+ .dose-actions .btn-taken { flex: 1 1 100%; }
+ .dose-actions .skip-dose { margin-left: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+ .app-toast { transform: none; transition: none; }
+ .app-toast.show { transform: none; }
+}
+@media print { .toast-container { display: none !important; } }

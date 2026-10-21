@@ -1,39 +1,112 @@
-const fs = require('fs');
-const path = require('path');
-const vm = require('vm');
-const assert = require('node:assert/strict');
-const { transformSync } = require('next/dist/build/swc');
-const cache = {};
-function load(file) {
- file = path.resolve(file);
- if (cache[file]) return cache[file].exports;
- const module = {exports:{}}; cache[file] = module;
- const source = transformSync(fs.readFileSync(file,'utf8'),{filename:file,jsc:{parser:{syntax:'ecmascript'},target:'es2020'},module:{type:'commonjs'}}).code;
- vm.runInNewContext(`(function(require,module,exports){${source}\n})`, {console,process,Date,Math,Number,JSON})(name => name.startsWith('.') ? load(path.resolve(path.dirname(file),name+'.js')) : require(name),module,module.exports);
- return module.exports;
+const assert = require("node:assert/strict");
+const createLoader = require("./loader.cjs");
+const { response, request, cookies } = createLoader;
+async function run() {
+  const loader = createLoader();
+  const supply = loader.load("lib/supply.js");
+  assert.equal(
+    supply.initialSupply({
+      duration: "30 days",
+      dose: "2 tablets",
+      frequency: "twice daily",
+    }),
+    120,
+  );
+  assert.equal(
+    supply.daysRemaining({
+      currentSupply: 20,
+      dose: "2 tablets",
+      frequency: "twice daily",
+    }),
+    5,
+  );
+  assert.equal(supply.unitsPerDose({ dose: "0.5 tablet" }), 0.5);
+  assert.equal(supply.unitsPerDose({ dose: "5 ml" }), null);
+  assert.equal(
+    loader
+      .load("lib/routine.js")
+      .anchorTimes({ sleep: "22:00" }, "bedtime", 1)[0],
+    "22:00",
+  );
+  const auth = loader.load("lib/auth.js");
+  const db = {
+    person: {
+      name: "Test elder",
+      pinHash: auth.hashPin("246810"),
+      pinEnabled: true,
+      pinSetupRequired: false,
+    },
+    devices: [],
+    medications: [
+      {
+        id: "m",
+        name: "Test medicine",
+        dose: "2 tablets",
+        frequency: "twice daily",
+        currentSupply: 22,
+      },
+    ],
+    doses: [
+      {
+        id: "d",
+        medicationId: "m",
+        status: "pending",
+        scheduledTime: new Date().toISOString(),
+        reminderDeliveries: { "https://private-push.example/token": "sent" },
+      },
+    ],
+    alerts: [],
+    activityLogs: [],
+  };
+  loader.mock("lib/db.js", {
+    readDB: () => db,
+    writeDB: () => {},
+    nextId: () => require("crypto").randomUUID(),
+    logAgentActivity: () => {},
+  });
+  const res = response(),
+    req = request("POST", { status: "taken" });
+  req.query.id = "d";
+  auth.startSession(req, res, db);
+  req.headers.cookie = cookies(res);
+  const handler = loader.load("pages/api/doses/[id]/status.js").default;
+  await handler(req, res);
+  assert.equal(res.code, 200);
+  assert.equal(db.medications[0].currentSupply, 20);
+  assert.equal(db.alerts[0].daysRemaining, 5);
+  assert.equal(res.body.dose.reminderDeliveries, undefined);
+  const confirmed = db.doses[0].confirmedAt;
+  await handler(req, res);
+  assert.equal(db.medications[0].currentSupply, 20);
+  assert.equal(db.doses[0].confirmedAt, confirmed);
+  assert.equal(db.alerts.length, 1);
+  req.body.status = "skipped";
+  await handler(req, res);
+  assert.equal(res.code, 409);
+  assert.equal(db.doses[0].status, "taken");
+  const overdue = loader.load("lib/doseState.js");
+  assert.equal(
+    overdue.isOverdue({
+      status: "taken",
+      scheduledTime: new Date(0).toISOString(),
+    }),
+    false,
+  );
+  assert.equal(
+    overdue.isOverdue({
+      status: "pending",
+      scheduledTime: new Date(Date.now() - 11 * 60000).toISOString(),
+      medication: { criticality: "critical" },
+    }),
+    true,
+  );
+  console.log(
+    "Safety tests passed: quantity, depletion, duplicate lock, timestamp preservation, bedtime and overdue grace.",
+  );
 }
-const supply = load('lib/supply.js');
-assert.equal(supply.initialSupply({duration:'30 days',dose:'2 tablets',frequency:'twice daily'}),120);
-assert.equal(supply.daysRemaining({currentSupply:20,dose:'2 tablets',frequency:'twice daily'}),5);
-assert.equal(supply.unitsPerDose({dose:'0.5 tablet'}),0.5);
-assert.equal(supply.unitsPerDose({dose:'5 ml'}),null);
-const routine = load('lib/routine.js');
-assert.equal(routine.anchorTimes({sleep:'22:00'},'bedtime',1)[0],'22:00');
-const dbModule = load('lib/db.js');
-const db = {person:{name:'Elder'},medications:[{id:'m',name:'Test',dose:'2 tablets',frequency:'twice daily',currentSupply:22}],doses:[{id:'d',medicationId:'m',status:'pending',scheduledTime:new Date().toISOString()}],alerts:[],activityLogs:[]};
-cache[path.resolve("lib/db.js")].exports = { ...dbModule, readDB: () => db, writeDB: () => {} };
-const handler = load('pages/api/doses/[id]/status.js').default;
-let code,body;
-const res = {status(n){code=n;return this},json(b){body=b;return this}};
-handler({method:'POST',query:{id:'d'},body:{status:'taken'}},res);
-assert.equal(db.medications[0].currentSupply,20);
-assert.equal(db.alerts[0].daysRemaining,5);
-const confirmedAt = db.doses[0].confirmedAt;
-handler({method:'POST',query:{id:'d'},body:{status:'taken'}},res);
-assert.equal(db.medications[0].currentSupply,20);
-assert.equal(db.doses[0].confirmedAt,confirmedAt);
-assert.equal(db.alerts.length,1);
-handler({method:'POST',query:{id:'d'},body:{status:'skipped'}},res);
-assert.equal(code,409);
-assert.equal(db.doses[0].status,'taken');
-console.log('Safety checks passed: duplicate lock, immutable confirmation, quantity, five-day threshold, duration and bedtime.');
+module.exports = run;
+if (require.main === module)
+  run().catch((error) => {
+    console.error(error);
+    process.exitCode = 1;
+  });

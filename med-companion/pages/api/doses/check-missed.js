@@ -1,3 +1,4 @@
+import { secureApi } from "../../../lib/apiSecurity";
 import { readDB, writeDB, nextId, logAgentActivity } from "../../../lib/db";
 
 // How long to wait after the scheduled time before calling a dose
@@ -5,7 +6,7 @@ import { readDB, writeDB, nextId, logAgentActivity } from "../../../lib/db";
 const WINDOW_MINUTES_NORMAL = 30;
 const WINDOW_MINUTES_CRITICAL = 10;
 
-export default function handler(req, res) {
+function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Use POST" });
 
   const db = readDB();
@@ -35,9 +36,9 @@ export default function handler(req, res) {
       timestamp: now.toISOString(),
       acknowledged: false,
       log: [
-        { step: "reminder_1_sent", at: dose.scheduledTime },
+        { step: "dose_scheduled", at: dose.scheduledTime },
         { step: "no_response", at: dueBy.toISOString() },
-        { step: "escalated_to_caregiver", at: now.toISOString(), caregiverId: db.caregivers[0]?.id },
+        { step: "caregiver_dashboard_alert_created", at: now.toISOString(), caregiverId: db.caregivers[0]?.id },
       ],
     };
     db.alerts.push(alert);
@@ -72,3 +73,6 @@ export default function handler(req, res) {
   writeDB(db);
   res.status(200).json({ checkedAt: now.toISOString(), newAlerts });
 }
+
+export default secureApi(handler, { role: "device" });
+export const config = {api:{bodyParser:{sizeLimit:"32kb"}}};

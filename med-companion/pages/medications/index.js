@@ -136,9 +136,9 @@ export default function MedicationsList() {
           <div className="dose-row">
             <div>
               <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                <span style={{ fontSize: 20, fontWeight: 700 }}>{med.name}</span>
+                <span style={{ fontSize: "calc(20px * var(--font-scale, 1))", fontWeight: 700 }}>{med.name}</span>
                 {med.strength && (
-                  <span style={{ fontSize: 16, fontWeight: 500, color: "var(--muted)" }}>
+                  <span style={{ fontSize: "calc(16px * var(--font-scale, 1))", fontWeight: 500, color: "var(--muted)" }}>
                     ({med.strength})
                   </span>
                 )}

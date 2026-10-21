@@ -95,7 +95,7 @@ export default function CaregiverDashboard() {
         <Link
           href="/caregiver/summary"
           className="btn btn-secondary"
-          style={{ textDecoration: "none", fontSize: 14 }}
+          style={{ textDecoration: "none", fontSize: "calc(14px * var(--font-scale, 1))" }}
         >
           📄 {t("pharmacistSummary")} (Print / PDF)
         </Link>
@@ -106,14 +106,14 @@ export default function CaregiverDashboard() {
       <div className="card">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 16 }}>
           <div>
-            <span style={{ fontSize: 26, fontWeight: 700, color: "var(--accent)" }}>
+            <span style={{ fontSize: "calc(26px * var(--font-scale, 1))", fontWeight: 700, color: "var(--accent)" }}>
               {adherencePct !== null ? `${adherencePct}%` : "—"}
             </span>
-            <span style={{ fontSize: 14, color: "var(--muted)", marginLeft: 8 }}>
+            <span style={{ fontSize: "calc(14px * var(--font-scale, 1))", color: "var(--muted)", marginLeft: 8 }}>
               {adherencePct !== null ? `today (${takenToday}/${totalToday} doses)` : "No doses scheduled today"}
             </span>
           </div>
-          <span style={{ fontSize: 13, color: "var(--muted)" }}>Past 7 Days History</span>
+          <span style={{ fontSize: "calc(13px * var(--font-scale, 1))", color: "var(--muted)" }}>Past 7 Days History</span>
         </div>
 
         {/* SVG Bar Chart */}
@@ -196,7 +196,7 @@ export default function CaregiverDashboard() {
         <>
           <h2>⚠️ {t("interactionsFound")} ({interactions.length})</h2>
           <div className="card" style={{ borderLeft: "6px solid var(--danger)" }}>
-            <p style={{ fontSize: 14, color: "var(--muted)", margin: "0 0 12px" }}>
+            <p style={{ fontSize: "calc(14px * var(--font-scale, 1))", color: "var(--muted)", margin: "0 0 12px" }}>
               Clinical interactions flagged between active medications. Phrased as non-directive pharmacist inquiry points:
             </p>
             {interactions.map((int, i) => (
@@ -211,7 +211,7 @@ export default function CaregiverDashboard() {
                 }}
               >
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <strong style={{ fontSize: 16 }}>
+                  <strong style={{ fontSize: "calc(16px * var(--font-scale, 1))" }}>
                     {int.medicationA} + {int.medicationB}
                   </strong>
                   <span
@@ -222,7 +222,7 @@ export default function CaregiverDashboard() {
                     {int.severity} risk
                   </span>
                 </div>
-                <p style={{ fontSize: 13, color: "var(--muted)", margin: "6px 0 10px" }}>
+                <p style={{ fontSize: "calc(13px * var(--font-scale, 1))", color: "var(--muted)", margin: "6px 0 10px" }}>
                   {int.mechanism}
                 </p>
                 <div
@@ -231,7 +231,7 @@ export default function CaregiverDashboard() {
                     border: "1px solid var(--accent)",
                     borderRadius: 8,
                     padding: "10px 12px",
-                    fontSize: 14,
+                    fontSize: "calc(14px * var(--font-scale, 1))",
                     color: "var(--text)",
                     lineHeight: 1.4,
                   }}
@@ -264,21 +264,21 @@ export default function CaregiverDashboard() {
         <div style={{ display: "flex", gap: 6 }}>
           <button
             className={`btn ${statusFilter === "all" ? "btn-primary" : "btn-secondary"}`}
-            style={{ fontSize: 13, padding: "6px 12px" }}
+            style={{ fontSize: "calc(13px * var(--font-scale, 1))", padding: "6px 12px" }}
             onClick={() => setStatusFilter("all")}
           >
             All ({alerts.length})
           </button>
           <button
             className={`btn ${statusFilter === "unack" ? "btn-primary" : "btn-secondary"}`}
-            style={{ fontSize: 13, padding: "6px 12px" }}
+            style={{ fontSize: "calc(13px * var(--font-scale, 1))", padding: "6px 12px" }}
             onClick={() => setStatusFilter("unack")}
           >
             Unacknowledged ({alerts.filter((a) => !a.acknowledged).length})
           </button>
           <button
             className={`btn ${statusFilter === "ack" ? "btn-primary" : "btn-secondary"}`}
-            style={{ fontSize: 13, padding: "6px 12px" }}
+            style={{ fontSize: "calc(13px * var(--font-scale, 1))", padding: "6px 12px" }}
             onClick={() => setStatusFilter("ack")}
           >
             Acknowledged
@@ -289,7 +289,7 @@ export default function CaregiverDashboard() {
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value)}
-            style={{ fontSize: 13, padding: "6px 10px", width: "auto", marginBottom: 0 }}
+            style={{ fontSize: "calc(13px * var(--font-scale, 1))", padding: "6px 10px", width: "auto", marginBottom: 0 }}
           >
             <option value="newest">Sort: Newest First</option>
             <option value="criticality">Sort: Critical First</option>
@@ -300,7 +300,7 @@ export default function CaregiverDashboard() {
             placeholder="Search medication…"
             value={medSearch}
             onChange={(e) => setMedSearch(e.target.value)}
-            style={{ fontSize: 13, padding: "6px 10px", width: 170, marginBottom: 0 }}
+            style={{ fontSize: "calc(13px * var(--font-scale, 1))", padding: "6px 10px", width: 170, marginBottom: 0 }}
           />
         </div>
       </div>
@@ -325,7 +325,7 @@ export default function CaregiverDashboard() {
         >
           <div className="dose-row">
             <div>
-              <strong>{a.medicationName}</strong> — {a.type === "refill_low" ? (a.message || `Low supply: ${a.pillsRemaining} pills remaining`) : "missed dose"}
+              <strong>{a.medicationName}</strong> — {a.type === "caregiver_help" ? (a.message || "Caregiver help requested") : a.type === "refill_low" ? (a.message || `Low supply: ${a.pillsRemaining} pills remaining`) : "missed dose"}
               {a.criticality === "critical" && (
                 <span className="status-pill status-missed" style={{ marginLeft: 8 }}>
                   critical
@@ -335,10 +335,10 @@ export default function CaregiverDashboard() {
 
               {/* Expandable Agent Activity Log */}
               <details style={{ marginTop: 8 }}>
-                <summary style={{ cursor: "pointer", fontSize: 13, color: "var(--muted)", fontWeight: 600 }}>
+                <summary style={{ cursor: "pointer", fontSize: "calc(13px * var(--font-scale, 1))", color: "var(--muted)", fontWeight: 600 }}>
                   🤖 {t("agentActivityLog")}
                 </summary>
-                <ul style={{ fontSize: 13, color: "var(--muted)", margin: "6px 0 0", paddingLeft: 20 }}>
+                <ul style={{ fontSize: "calc(13px * var(--font-scale, 1))", color: "var(--muted)", margin: "6px 0 0", paddingLeft: 20 }}>
                   {a.log?.map((entry, i) => (
                     <li key={i}>
                       <code>{entry.step}</code> — {new Date(entry.at).toLocaleTimeString()}

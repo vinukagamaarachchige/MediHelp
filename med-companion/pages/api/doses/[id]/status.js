@@ -1,14 +1,18 @@
+import { publicDose, publicMedication } from "../../../../lib/validation";
+import { secureApi } from "../../../../lib/apiSecurity";
 import { unitsPerDose, daysRemaining } from "../../../../lib/supply";
 import { readDB, writeDB, nextId, logAgentActivity } from "../../../../lib/db";
 
-export default function handler(req, res) {
+function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Use POST" });
 
   const { id } = req.query;
   const { status } = req.body || {}; // "taken" | "skipped"
 
   if (!["taken", "skipped"].includes(status)) {
-    return res.status(400).json({ error: "status must be 'taken' or 'skipped'" });
+    return res
+      .status(400)
+      .json({ error: "status must be 'taken' or 'skipped'" });
   }
 
   const db = readDB();
@@ -16,8 +20,17 @@ export default function handler(req, res) {
   if (!dose) return res.status(404).json({ error: "Dose not found" });
 
   const med = db.medications.find((m) => m.id === dose.medicationId);
-  if (dose.status === "taken") return res.status(status === "taken" ? 200 : 409).json({ dose, medication: med, alreadyTaken: true, error: status === "taken" ? undefined : "A taken dose is locked." });
-  if (med?.retired) return res.status(409).json({ error: "Medication is retired" });
+  if (dose.status === "taken")
+    return res
+      .status(status === "taken" ? 200 : 409)
+      .json({
+        dose: publicDose(dose),
+        medication: publicMedication(med),
+        alreadyTaken: true,
+        error: status === "taken" ? undefined : "A taken dose is locked.",
+      });
+  if (med?.retired)
+    return res.status(409).json({ error: "Medication is retired" });
   const previousStatus = dose.status;
   const now = new Date();
 
@@ -36,7 +49,7 @@ export default function handler(req, res) {
         (a) =>
           a.type === "refill_low" &&
           a.medicationId === med.id &&
-          !a.acknowledged
+          !a.acknowledged,
       );
 
       if (!existingRefillAlert) {
@@ -54,7 +67,11 @@ export default function handler(req, res) {
           pillsRemaining: med.currentSupply,
           log: [
             { step: "dose_taken", at: now.toISOString() },
-            { step: "supply_threshold_reached", at: now.toISOString(), pillsRemaining: med.currentSupply },
+            {
+              step: "supply_threshold_reached",
+              at: now.toISOString(),
+              pillsRemaining: med.currentSupply,
+            },
             { step: "caregiver_refill_alert_created", at: now.toISOString() },
           ],
         };
@@ -64,7 +81,7 @@ export default function handler(req, res) {
           db,
           "escalate",
           `Refill Alert: ${med.name} running low (${med.currentSupply} pills remaining). Caregiver dashboard alert created.`,
-          { medication: med.name, pillsRemaining: med.currentSupply }
+          { medication: med.name, pillsRemaining: med.currentSupply },
         );
       }
     }
@@ -75,7 +92,7 @@ export default function handler(req, res) {
     db,
     "action",
     `Dose marked ${status.toUpperCase()}: ${med?.name || "Medication"} (${med?.strength || ""}) scheduled for ${new Date(
-      dose.scheduledTime
+      dose.scheduledTime,
     ).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`,
     {
       doseId: dose.id,
@@ -83,9 +100,14 @@ export default function handler(req, res) {
       status,
       previousStatus,
       pillsRemaining: med?.currentSupply,
-    }
+    },
   );
 
   writeDB(db);
-  res.status(200).json({ dose, medication: med });
+  res
+    .status(200)
+    .json({ dose: publicDose(dose), medication: publicMedication(med) });
 }
+
+export default secureApi(handler, { role: "device" });
+export const config = { api: { bodyParser: { sizeLimit: "4kb" } } };

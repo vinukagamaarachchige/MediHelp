@@ -69,7 +69,7 @@ export default function PharmacistSummary() {
         <button
           className="btn btn-primary"
           onClick={() => window.print()}
-          style={{ fontSize: 15 }}
+          style={{ fontSize: "calc(15px * var(--font-scale, 1))" }}
         >
           🖨️ Print / Save as PDF
         </button>
@@ -89,10 +89,10 @@ export default function PharmacistSummary() {
         <div style={{ borderBottom: "2px solid #2563eb", paddingBottom: 16, marginBottom: 20 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
             <div>
-              <h1 style={{ margin: 0, fontSize: 24, color: "#1e3a8a" }}>
+              <h1 style={{ margin: 0, fontSize: "calc(24px * var(--font-scale, 1))", color: "#1e3a8a" }}>
                 PHARMACIST & CLINICAL CONSULTATION SUMMARY
               </h1>
-              <p style={{ margin: "4px 0 0", color: "#666", fontSize: 13 }}>
+              <p style={{ margin: "4px 0 0", color: "#666", fontSize: "calc(13px * var(--font-scale, 1))" }}>
                 Generated: {new Date().toLocaleDateString()} at {new Date().toLocaleTimeString()}
               </p>
             </div>
@@ -103,7 +103,7 @@ export default function PharmacistSummary() {
                 padding: "6px 12px",
                 borderRadius: 6,
                 fontWeight: 700,
-                fontSize: 12,
+                fontSize: "calc(12px * var(--font-scale, 1))",
               }}
             >
               CONFIDENTIAL HEALTH SUMMARY
@@ -121,18 +121,18 @@ export default function PharmacistSummary() {
             padding: 16,
             borderRadius: 8,
             marginBottom: 20,
-            fontSize: 13,
+            fontSize: "calc(13px * var(--font-scale, 1))",
           }}
         >
           <div>
-            <h3 style={{ margin: "0 0 6px", fontSize: 14, color: "#374151" }}>Patient Information</h3>
+            <h3 style={{ margin: "0 0 6px", fontSize: "calc(14px * var(--font-scale, 1))", color: "#374151" }}>Patient Information</h3>
             <p style={{ margin: "2px 0" }}><strong>Name:</strong> {data.person.name || "Elder"}</p>
             <p style={{ margin: "2px 0" }}>
               <strong>Routine Anchor Times:</strong> Breakfast {data.person.breakfast}, Lunch {data.person.lunch}, Dinner {data.person.dinner}, Sleep {data.person.sleep}
             </p>
           </div>
           <div>
-            <h3 style={{ margin: "0 0 6px", fontSize: 14, color: "#374151" }}>Primary Caregiver Contact</h3>
+            <h3 style={{ margin: "0 0 6px", fontSize: "calc(14px * var(--font-scale, 1))", color: "#374151" }}>Primary Caregiver Contact</h3>
             {data.caregivers[0] ? (
               <>
                 <p style={{ margin: "2px 0" }}>
@@ -149,13 +149,13 @@ export default function PharmacistSummary() {
         </div>
 
         {/* Active Medications Table */}
-        <h2 style={{ fontSize: 16, margin: "0 0 10px", color: "#111" }}>
+        <h2 style={{ fontSize: "calc(16px * var(--font-scale, 1))", margin: "0 0 10px", color: "#111" }}>
           Current Active Medications ({data.medications.length})
         </h2>
         {data.medications.length === 0 ? (
-          <p style={{ fontSize: 13, color: "#666" }}>No active medications recorded.</p>
+          <p style={{ fontSize: "calc(13px * var(--font-scale, 1))", color: "#666" }}>No active medications recorded.</p>
         ) : (
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, marginBottom: 24 }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "calc(13px * var(--font-scale, 1))", marginBottom: 24 }}>
             <thead>
               <tr style={{ background: "#f3f4f6", borderBottom: "2px solid #ccc" }}>
                 <th style={{ padding: "8px 10px", textAlign: "left" }}>Medication</th>
@@ -177,7 +177,7 @@ export default function PharmacistSummary() {
                   <td style={{ padding: "8px 10px" }}>
                     <span
                       style={{
-                        fontSize: 11,
+                        fontSize: "calc(11px * var(--font-scale, 1))",
                         padding: "2px 6px",
                         borderRadius: 4,
                         background: m.criticality === "critical" ? "#fee2e2" : "#f3f4f6",
@@ -195,7 +195,7 @@ export default function PharmacistSummary() {
         )}
 
         {/* 7-Day Compliance & Adherence Stats */}
-        <h2 style={{ fontSize: 16, margin: "0 0 10px", color: "#111" }}>
+        <h2 style={{ fontSize: "calc(16px * var(--font-scale, 1))", margin: "0 0 10px", color: "#111" }}>
           7-Day Adherence & Compliance Report
         </h2>
         <div
@@ -211,29 +211,29 @@ export default function PharmacistSummary() {
           }}
         >
           <div>
-            <div style={{ fontSize: 24, fontWeight: 700, color: "#16a34a" }}>
+            <div style={{ fontSize: "calc(24px * var(--font-scale, 1))", fontWeight: 700, color: "#16a34a" }}>
               {weekAdherence !== "N/A" ? `${weekAdherence}%` : "—"}
             </div>
-            <div style={{ fontSize: 12, color: "#666" }}>7-Day Adherence Rate</div>
+            <div style={{ fontSize: "calc(12px * var(--font-scale, 1))", color: "#666" }}>7-Day Adherence Rate</div>
           </div>
           <div>
-            <div style={{ fontSize: 24, fontWeight: 700, color: "#2563eb" }}>
+            <div style={{ fontSize: "calc(24px * var(--font-scale, 1))", fontWeight: 700, color: "#2563eb" }}>
               {takenWeekDoses} / {totalWeekDoses}
             </div>
-            <div style={{ fontSize: 12, color: "#666" }}>Doses Taken / Total</div>
+            <div style={{ fontSize: "calc(12px * var(--font-scale, 1))", color: "#666" }}>Doses Taken / Total</div>
           </div>
           <div>
-            <div style={{ fontSize: 24, fontWeight: 700, color: "#dc2626" }}>
+            <div style={{ fontSize: "calc(24px * var(--font-scale, 1))", fontWeight: 700, color: "#dc2626" }}>
               {data.alerts.length}
             </div>
-            <div style={{ fontSize: 12, color: "#666" }}>Logged Missed Alerts</div>
+            <div style={{ fontSize: "calc(12px * var(--font-scale, 1))", color: "#666" }}>Logged Missed Alerts</div>
           </div>
         </div>
 
         {/* Pharmacist Questions & Drug Interaction Inquiries */}
         {data.interactions.length > 0 && (
           <div style={{ marginBottom: 24 }}>
-            <h2 style={{ fontSize: 16, margin: "0 0 10px", color: "#b91c1c" }}>
+            <h2 style={{ fontSize: "calc(16px * var(--font-scale, 1))", margin: "0 0 10px", color: "#b91c1c" }}>
               ⚠️ Drug Interaction Points for Pharmacist / Doctor Review
             </h2>
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -245,7 +245,7 @@ export default function PharmacistSummary() {
                     background: "#fef2f2",
                     borderRadius: 6,
                     padding: "10px 14px",
-                    fontSize: 13,
+                    fontSize: "calc(13px * var(--font-scale, 1))",
                   }}
                 >
                   <p style={{ margin: "0 0 4px", fontWeight: 700, color: "#991b1b" }}>
@@ -262,7 +262,7 @@ export default function PharmacistSummary() {
         )}
 
         {/* Medical Sign-off and Disclaimer */}
-        <div style={{ borderTop: "1px solid #ccc", paddingTop: 14, marginTop: 24, fontSize: 11, color: "#777" }}>
+        <div style={{ borderTop: "1px solid #ccc", paddingTop: 14, marginTop: 24, fontSize: "calc(11px * var(--font-scale, 1))", color: "#777" }}>
           <p style={{ margin: 0 }}>
             {DISCLAIMER}
           </p>

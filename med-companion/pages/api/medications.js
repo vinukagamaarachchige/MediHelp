@@ -1,42 +1,69 @@
+import {
+  medicationInput,
+  publicMedication,
+  publicDose,
+} from "../../lib/validation";
+import { secureApi } from "../../lib/apiSecurity";
+import { requireCaregiver } from "../../lib/auth";
 import { initialSupply } from "../../lib/supply";
 import { readDB, writeDB, nextId, logAgentActivity } from "../../lib/db";
 import { buildTodaySchedule, previewScheduleForMeds } from "../../lib/schedule";
 import { checkMedicationInteractions } from "../../lib/interactions";
 
-export default function handler(req, res) {
+function handler(req, res) {
   const db = readDB();
+  if (req.method !== "GET" && !requireCaregiver(req, res, db)) return;
 
   if (req.method === "GET") {
     const activeOnly = req.query.active === "true";
-    const meds = activeOnly ? db.medications.filter((m) => !m.retired) : db.medications;
+    const meds = activeOnly
+      ? db.medications.filter((m) => !m.retired)
+      : db.medications;
     const interactions = checkMedicationInteractions(db.medications);
 
     return res.status(200).json({
-      medications: meds,
+      medications: meds.map(publicMedication),
+      routine: Object.fromEntries(
+        ["wake", "breakfast", "lunch", "dinner", "sleep"].map((key) => [
+          key,
+          db.person[key],
+        ]),
+      ),
       interactions,
     });
   }
 
   if (req.method === "POST") {
-    const { medications, preview } = req.body || {};
+    const { medications: rawMedications, preview } = req.body || {};
+    if (
+      !Array.isArray(rawMedications) ||
+      !rawMedications.length ||
+      rawMedications.length > 30
+    )
+      return res.status(400).json({ error: "Provide 1–30 medications." });
+    const medications = rawMedications.map((m) =>
+      medicationInput(m, {
+        preview: preview === true || req.query.preview === "true",
+      }),
+    );
     if (!Array.isArray(medications) || medications.length === 0) {
       return res.status(400).json({ error: "No medications provided" });
     }
 
-    if (medications.some(m => m.currentSupply != null && (!Number.isFinite(m.currentSupply) || m.currentSupply < 0))) return res.status(400).json({error: "Supply must be a non-negative number"});
-    if (medications.some(m => m.pillPhoto && (!/^data:image\/(jpeg|png|webp);base64,/.test(m.pillPhoto) || m.pillPhoto.length > 820000))) return res.status(400).json({error: "Invalid pill photo"});
     const activeExisting = db.medications.filter((m) => !m.retired);
 
     // Duplicate detection: compare candidate meds against active medications
     const duplicates = [];
     for (const cand of medications) {
       const match = activeExisting.find(
-        (ex) => ex.name.trim().toLowerCase() === (cand.name || "").trim().toLowerCase()
+        (ex) =>
+          ex.name.trim().toLowerCase() ===
+          (cand.name || "").trim().toLowerCase(),
       );
       if (match) {
         duplicates.push({
           candidateName: cand.name,
-          existingMedication: match,
+          existingMedication: publicMedication(match),
         });
       }
     }
@@ -56,6 +83,13 @@ export default function handler(req, res) {
       });
     }
 
+    if (db.medications.length + medications.length > 1000)
+      return res
+        .status(409)
+        .json({
+          error:
+            "Medication record limit reached. Export and archive old records before adding more.",
+        });
     // Persist new medications
     const withIds = medications.map((m) => ({
       id: nextId("med"),
@@ -72,6 +106,13 @@ export default function handler(req, res) {
       currentSupply: initialSupply(m),
       initialSupply: initialSupply(m),
       pillPhoto: m.pillPhoto || "",
+      foodInstructions: String(m.foodInstructions || "").slice(0, 2000),
+      sideEffects: String(m.sideEffects || "").slice(0, 2000),
+      missedDoseInstructions: String(m.missedDoseInstructions || "").slice(
+        0,
+        2000,
+      ),
+      instructionSource: String(m.instructionSource || "").slice(0, 300),
       pillImprint: m.pillImprint || "",
       retired: false,
       createdAt: new Date().toISOString(),
@@ -92,13 +133,13 @@ export default function handler(req, res) {
         newMedications: withIds.map((m) => `${m.name} (${m.frequency})`),
         dosesScheduled: newDoses.length,
         interactionsDetected: interactions.length,
-      }
+      },
     );
 
     writeDB(db);
     return res.status(200).json({
       medications: withIds,
-      doses: newDoses,
+      doses: newDoses.map(publicDose),
       duplicates,
       interactions,
     });
@@ -108,3 +149,5 @@ export default function handler(req, res) {
 }
 
 export const config = { api: { bodyParser: { sizeLimit: "8mb" } } };
+
+export default secureApi(handler, { role: "device" });

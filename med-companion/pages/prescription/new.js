@@ -93,6 +93,7 @@ export default function NewPrescription() {
   function handlePhotoUpload(e) {
     const file = e.target.files?.[0];
     if (file) {
+      if (!["image/jpeg","image/png","image/webp"].includes(file.type) || file.size > 2000000) { showToast("Choose a JPG, PNG or WebP image smaller than 2 MB.", "warn"); return; }
       const reader = new FileReader();
       reader.onload = (event) => {
         setImagePreview(event.target.result);
@@ -103,7 +104,9 @@ export default function NewPrescription() {
 
   // Use Sample Demo Photo
   function handleUseSamplePhoto() {
-    setImagePreview(SAMPLE_PRESCRIPTION_IMAGE);
+    setTab("type");
+    setText("Atorvastatin 20mg, 1 tablet once daily at night\nMetformin 500mg, 1 tablet twice daily with meals");
+    showToast("Sample text loaded. This is a demo, not an image scan.", "success");
   }
 
   async function extract() {
@@ -124,6 +127,7 @@ export default function NewPrescription() {
       });
 
       const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Extraction failed");
       setExtracting(false);
       setSource(data.source);
       setExtractionMeta({
@@ -145,7 +149,7 @@ export default function NewPrescription() {
       showToast(`AI extracted ${data.items?.length || 0} medication(s) (${data.confidencePct}% confidence)`, "success");
     } catch (e) {
       setExtracting(false);
-      showToast("Extraction failed", "warn");
+      showToast(e.message || "Extraction failed", "warn");
     }
   }
 
@@ -219,7 +223,7 @@ export default function NewPrescription() {
                   border: "1px solid var(--accent)",
                   borderRadius: 10,
                   padding: "12px 16px",
-                  fontSize: 14,
+                  fontSize: "calc(14px * var(--font-scale, 1))",
                   marginBottom: 16,
                 }}
               >
@@ -245,7 +249,7 @@ export default function NewPrescription() {
                   </div>
                 ) : (
                   <div>
-                    <p style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
+                    <p style={{ fontSize: "calc(16px * var(--font-scale, 1))", fontWeight: 600, marginBottom: 8 }}>
                       Upload Prescription Photo
                     </p>
                     <input
@@ -319,7 +323,7 @@ export default function NewPrescription() {
                 <div>
                   <span
                     style={{
-                      fontSize: 12,
+                      fontSize: "calc(12px * var(--font-scale, 1))",
                       fontWeight: 800,
                       textTransform: "uppercase",
                       letterSpacing: 0.5,
@@ -331,7 +335,7 @@ export default function NewPrescription() {
                   >
                     AI Vision Analysis Complete
                   </span>
-                  <h3 style={{ margin: "8px 0 4px", fontSize: 20 }}>
+                  <h3 style={{ margin: "8px 0 4px", fontSize: "calc(20px * var(--font-scale, 1))" }}>
                     🎯 {t("aiConfidenceScore")}:{" "}
                     <span
                       style={{
@@ -346,7 +350,7 @@ export default function NewPrescription() {
                       {extractionMeta.confidencePct}%
                     </span>
                   </h3>
-                  <p style={{ margin: 0, fontSize: 14, color: "var(--muted)" }}>
+                  <p style={{ margin: 0, fontSize: "calc(14px * var(--font-scale, 1))", color: "var(--muted)" }}>
                     {extractionMeta.confidenceLabel} · {meds.length} medication(s) identified
                   </p>
                 </div>
@@ -377,7 +381,7 @@ export default function NewPrescription() {
                       }}
                     />
                   </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "var(--muted)", marginTop: 4 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "calc(11px * var(--font-scale, 1))", color: "var(--muted)", marginTop: 4 }}>
                     <span>0% (Low)</span>
                     <span>100% (High)</span>
                   </div>
@@ -398,12 +402,12 @@ export default function NewPrescription() {
             }}
           >
             <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
-              <span style={{ fontSize: 24 }}>⚠️</span>
+              <span style={{ fontSize: "calc(24px * var(--font-scale, 1))" }}>⚠️</span>
               <div>
-                <strong style={{ fontSize: 15, display: "block", marginBottom: 4 }}>
+                <strong style={{ fontSize: "calc(15px * var(--font-scale, 1))", display: "block", marginBottom: 4 }}>
                   {t("aiDisclaimerTitle")}
                 </strong>
-                <p style={{ margin: 0, fontSize: 14, lineHeight: 1.45 }}>
+                <p style={{ margin: 0, fontSize: "calc(14px * var(--font-scale, 1))", lineHeight: 1.45 }}>
                   {t("aiDisclaimerText")}
                 </p>
               </div>
@@ -423,8 +427,8 @@ export default function NewPrescription() {
               gap: 12,
             }}
           >
-            <span style={{ fontSize: 20 }}>🔍</span>
-            <span style={{ fontSize: 14, fontWeight: 600, color: "var(--text)" }}>
+            <span style={{ fontSize: "calc(20px * var(--font-scale, 1))" }}>🔍</span>
+            <span style={{ fontSize: "calc(14px * var(--font-scale, 1))", fontWeight: 600, color: "var(--text)" }}>
               {t("recheckPrompt")}
             </span>
           </div>
@@ -450,7 +454,7 @@ export default function NewPrescription() {
                   </li>
                 ))}
               </ul>
-              <p style={{ fontSize: 13, margin: "6px 0 0", color: "var(--muted)" }}>
+              <p style={{ fontSize: "calc(13px * var(--font-scale, 1))", margin: "6px 0 0", color: "var(--muted)" }}>
                 You may proceed if this is a dosage renewal, or edit the name if it is distinct.
               </p>
             </div>
@@ -486,13 +490,13 @@ export default function NewPrescription() {
                   <p style={{ margin: "0 0 6px", fontWeight: 700 }}>
                     {inter.medicationA} + {inter.medicationB} ({inter.severity.toUpperCase()})
                   </p>
-                  <p style={{ margin: "0 0 6px", fontSize: 14, color: "#4b5563" }}>
+                  <p style={{ margin: "0 0 6px", fontSize: "calc(14px * var(--font-scale, 1))", color: "#4b5563" }}>
                     {inter.mechanism}
                   </p>
                   <p
                     style={{
                       margin: 0,
-                      fontSize: 14,
+                      fontSize: "calc(14px * var(--font-scale, 1))",
                       fontWeight: 600,
                       color: "var(--accent)",
                       background: "var(--accent-light)",
@@ -522,7 +526,7 @@ export default function NewPrescription() {
                   alt="Original Prescription"
                   style={{ width: "100%", maxHeight: 520, objectFit: "contain", borderRadius: 8, border: "1px solid var(--border)" }}
                 />
-                <p style={{ fontSize: 12, color: "var(--muted)", marginTop: 8 }}>
+                <p style={{ fontSize: "calc(12px * var(--font-scale, 1))", color: "var(--muted)", marginTop: 8 }}>
                   Carefully compare every extracted drug name, dose number, and frequency on the right directly against this image.
                 </p>
               </div>
@@ -541,7 +545,7 @@ export default function NewPrescription() {
                     }}
                   >
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                      <span style={{ fontWeight: 700, fontSize: 16 }}>Medication #{i + 1}</span>
+                      <span style={{ fontWeight: 700, fontSize: "calc(16px * var(--font-scale, 1))" }}>Medication #{i + 1}</span>
                       <span
                         className={`status-pill ${
                           confPct >= 80 ? "status-taken" : confPct >= 60 ? "status-skipped" : "status-missed"
@@ -590,6 +594,7 @@ export default function NewPrescription() {
                           value={m.frequency}
                           onChange={(e) => updateMed(i, "frequency", e.target.value)}
                         >
+                          <option value="">Confirm frequency</option>
                           <option value="once daily">Once daily</option>
                           <option value="twice daily">Twice daily</option>
                           <option value="three times a day">Three times a day</option>
@@ -682,7 +687,7 @@ export default function NewPrescription() {
                     </div>
 
                     {lowConfidence && (
-                      <label style={{ fontSize: 14, marginTop: 8, display: "flex", alignItems: "center" }}>
+                      <label style={{ fontSize: "calc(14px * var(--font-scale, 1))", marginTop: 8, display: "flex", alignItems: "center" }}>
                         <input
                           type="checkbox"
                           checked={!!m._reviewed}
@@ -716,7 +721,7 @@ export default function NewPrescription() {
           {previewSchedule.length > 0 && (
             <div className="card" style={{ background: "var(--card-subtle)" }}>
               <h3>📅 {t("diffTitle")}</h3>
-              <p style={{ fontSize: 14, color: "var(--muted)", margin: "0 0 12px" }}>
+              <p style={{ fontSize: "calc(14px * var(--font-scale, 1))", color: "var(--muted)", margin: "0 0 12px" }}>
                 The scheduling agent will automatically generate the following doses today based on routine anchor times:
               </p>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -734,8 +739,8 @@ export default function NewPrescription() {
                     }}
                   >
                     <div>
-                      <strong style={{ fontSize: 16 }}>{p.time}</strong> — {p.medicationName} ({p.strength})
-                      <span style={{ fontSize: 13, color: "var(--muted)", marginLeft: 8 }}>
+                      <strong style={{ fontSize: "calc(16px * var(--font-scale, 1))" }}>{p.time}</strong> — {p.medicationName} ({p.strength})
+                      <span style={{ fontSize: "calc(13px * var(--font-scale, 1))", color: "var(--muted)", marginLeft: 8 }}>
                         {p.timing === "with_food" ? "With meal" : p.timing === "empty_stomach" ? "Empty stomach" : "Any time"}
                       </span>
                     </div>
@@ -764,7 +769,7 @@ export default function NewPrescription() {
                 display: "flex",
                 alignItems: "center",
                 fontWeight: 700,
-                fontSize: 16,
+                fontSize: "calc(16px * var(--font-scale, 1))",
                 cursor: "pointer",
                 margin: 0,
                 color: userVerified ? "var(--ok)" : "var(--text)",
@@ -791,7 +796,7 @@ export default function NewPrescription() {
               className="btn btn-primary"
               onClick={save}
               disabled={saving || meds.length === 0 || !userVerified || hasUnreviewedLowConfidence}
-              style={{ fontSize: 18, padding: "14px 28px" }}
+              style={{ fontSize: "calc(18px * var(--font-scale, 1))", padding: "14px 28px" }}
             >
               {saving ? "Saving…" : `✓ ${t("confirmAndBuild")}`}
             </button>
@@ -810,7 +815,7 @@ export default function NewPrescription() {
           </div>
 
           {!userVerified && (
-            <p style={{ color: "var(--warn)", fontSize: 14, fontWeight: 600, marginTop: 10 }}>
+            <p style={{ color: "var(--warn)", fontSize: "calc(14px * var(--font-scale, 1))", fontWeight: 600, marginTop: 10 }}>
               ⚠️ Please check the verification box above to confirm that you have re-checked what was entered.
             </p>
           )}

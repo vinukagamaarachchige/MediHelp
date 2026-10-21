@@ -3,15 +3,22 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "test": "node tests/safety.cjs"
+    "dev": "node scripts/run-next.cjs dev",
+    "build": "node scripts/run-next.cjs build",
+    "start": "node scripts/start-with-reminders.cjs",
+    "test": "node tests/run.cjs",
+    "start:server": "node scripts/run-next.cjs start"
   },
   "dependencies": {
-    "next": "^14.2.35",
+    "next": "15.5.28",
     "react": "18.3.1",
     "react-dom": "18.3.1",
     "web-push": "^3.6.7"
+  },
+  "overrides": {
+    "postcss": "8.5.30"
+  },
+  "engines": {
+    "node": "^24.22.0"
   }
 }

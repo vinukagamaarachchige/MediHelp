@@ -1,3 +1,6 @@
+import { publicDose } from "../../lib/validation";
+import { secureApi } from "../../lib/apiSecurity";
+import { requireCaregiver } from "../../lib/auth";
 import { readDB, writeDB } from "../../lib/db";
 import { timesPerDay, anchorTimes, buildTodaySchedule } from "../../lib/schedule";
 
@@ -13,10 +16,11 @@ function formatDateKey(date) {
   return date.toISOString().split("T")[0];
 }
 
-export default function handler(req, res) {
+function handler(req, res) {
   if (req.method !== "GET") return res.status(405).json({ error: "Use GET" });
 
   const db = readDB();
+  if (["history", "adherence"].includes(req.query.range)) { res.setHeader("Cache-Control", "no-store"); if (!requireCaregiver(req, res, db)) return; }
   const medById = Object.fromEntries(db.medications.map((m) => [m.id, m]));
   const activeMeds = db.medications.filter((m) => !m.retired);
   const now = new Date();
@@ -98,7 +102,7 @@ export default function handler(req, res) {
         dayName: targetDate.toLocaleDateString("en-US", { weekday: "short" }),
         displayDate: targetDate.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
         isToday: isCurrentDay,
-        doses: dayDoses,
+        doses: dayDoses.map(publicDose),
       });
     }
 
@@ -111,5 +115,8 @@ export default function handler(req, res) {
     .map((d) => ({ ...d, medication: medById[d.medicationId] || null }))
     .sort((a, b) => new Date(a.scheduledTime) - new Date(b.scheduledTime));
 
-  return res.status(200).json(todayDoses);
+  return res.status(200).json(todayDoses.map(publicDose));
 }
+
+export default secureApi(handler, { role: "device" });
+export const config = {api:{bodyParser:{sizeLimit:"32kb"}}};

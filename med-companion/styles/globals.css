@@ -77,7 +77,7 @@ body {
   color: var(--text);
   text-decoration: none;
   font-weight: 600;
-  font-size: 15px;
+  font-size: calc(15px * var(--font-scale, 1));
   padding: 6px 10px;
   border-radius: 8px;
   transition: background 0.15s ease;
@@ -100,7 +100,7 @@ body {
   color: var(--text);
   border-radius: 8px;
   padding: 6px 12px;
-  font-size: 13px;
+  font-size: calc(13px * var(--font-scale, 1));
   cursor: pointer;
   font-weight: 600;
 }
@@ -110,9 +110,9 @@ body {
 }
 
 /* Typography & Headings */
-h1 { font-size: 28px; margin: 0 0 16px; font-weight: 700; }
-h2 { font-size: 20px; margin: 24px 0 12px; font-weight: 600; }
-h3 { font-size: 17px; margin: 16px 0 8px; }
+h1 { font-size: calc(28px * var(--font-scale, 1)); margin: 0 0 16px; font-weight: 700; }
+h2 { font-size: calc(20px * var(--font-scale, 1)); margin: 24px 0 12px; font-weight: 600; }
+h3 { font-size: calc(17px * var(--font-scale, 1)); margin: 16px 0 8px; }
 
 /* Cards */
 .card {
@@ -131,7 +131,7 @@ h3 { font-size: 17px; margin: 16px 0 8px; }
   color: var(--text);
   padding: 12px 16px;
   border-radius: 10px;
-  font-size: 14px;
+  font-size: calc(14px * var(--font-scale, 1));
   margin-bottom: 20px;
   line-height: 1.4;
 }
@@ -145,13 +145,13 @@ h3 { font-size: 17px; margin: 16px 0 8px; }
   flex-wrap: wrap;
 }
 
-.dose-time { font-size: 24px; font-weight: 700; min-width: 90px; color: var(--accent); }
-.dose-name { font-size: 22px; font-weight: 600; }
-.dose-sub { font-size: 14px; color: var(--muted); margin-top: 4px; }
+.dose-time { font-size: calc(24px * var(--font-scale, 1)); font-weight: 700; min-width: 90px; color: var(--accent); }
+.dose-name { font-size: calc(22px * var(--font-scale, 1)); font-weight: 600; }
+.dose-sub { font-size: calc(14px * var(--font-scale, 1)); color: var(--muted); margin-top: 4px; }
 
 /* Buttons */
 .btn {
-  font-size: 16px;
+  font-size: calc(16px * var(--font-scale, 1));
   padding: 12px 20px;
   border-radius: 10px;
   border: none;
@@ -180,7 +180,7 @@ h3 { font-size: 17px; margin: 16px 0 8px; }
   display: inline-block;
   padding: 4px 10px;
   border-radius: 999px;
-  font-size: 12px;
+  font-size: calc(12px * var(--font-scale, 1));
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -194,7 +194,7 @@ h3 { font-size: 17px; margin: 16px 0 8px; }
 /* Forms */
 textarea, input, select {
   width: 100%;
-  font-size: 15px;
+  font-size: calc(15px * var(--font-scale, 1));
   padding: 12px 14px;
   border-radius: 8px;
   border: 1px solid var(--border);
@@ -210,7 +210,7 @@ textarea:focus, input:focus, select:focus {
 
 label {
   display: block;
-  font-size: 14px;
+  font-size: calc(14px * var(--font-scale, 1));
   font-weight: 600;
   margin-bottom: 4px;
   color: var(--text);
@@ -226,7 +226,7 @@ label {
 
 .tab-btn {
   padding: 12px 18px;
-  font-size: 15px;
+  font-size: calc(15px * var(--font-scale, 1));
   font-weight: 600;
   color: var(--muted);
   background: transparent;
@@ -246,7 +246,7 @@ label {
 .badge-pro {
   background: linear-gradient(135deg, #ec4899, #8b5cf6);
   color: white;
-  font-size: 11px;
+  font-size: calc(11px * var(--font-scale, 1));
   font-weight: 800;
   padding: 2px 7px;
   border-radius: 6px;
@@ -288,10 +288,10 @@ label {
 
 /* Elder Simple Mode */
 .simple-mode {
-  font-size: 24px;
+  font-size: calc(24px * var(--font-scale, 1));
 }
 .simple-mode h1 {
-  font-size: 40px;
+  font-size: calc(40px * var(--font-scale, 1));
   margin-bottom: 24px;
 }
 .simple-mode .card {
@@ -301,78 +301,26 @@ label {
   margin-bottom: 24px;
 }
 .simple-mode .dose-time {
-  font-size: 38px;
+  font-size: calc(38px * var(--font-scale, 1));
   min-width: 150px;
 }
 .simple-mode .dose-name {
-  font-size: 32px;
+  font-size: calc(32px * var(--font-scale, 1));
   font-weight: 700;
 }
 .simple-mode .dose-sub {
-  font-size: 22px;
+  font-size: calc(22px * var(--font-scale, 1));
   margin-top: 8px;
 }
 .simple-mode .btn {
-  font-size: 26px;
+  font-size: calc(26px * var(--font-scale, 1));
   padding: 22px 34px;
   border-radius: 18px;
   border-width: 3px;
 }
 .simple-mode .status-pill {
-  font-size: 18px;
+  font-size: calc(18px * var(--font-scale, 1));
   padding: 8px 16px;
-}
-
-/* Toast Notification */
-.toast-container {
-  position: fixed;
-  bottom: 24px;
-  right: 24px;
-  z-index: 1000;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  max-width: 400px;
-}
-
-.toast {
-  background: var(--card);
-  color: var(--text);
-  border-left: 6px solid var(--accent);
-  border-radius: 10px;
-  padding: 16px 20px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  animation: toastIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-  border-top: 1px solid var(--border);
-  border-right: 1px solid var(--border);
-  border-bottom: 1px solid var(--border);
-}
-
-.toast.toast-success {
-  border-left-color: var(--ok);
-}
-
-.toast.toast-warn {
-  border-left-color: var(--warn);
-}
-
-.toast-icon {
-  font-size: 22px;
-  animation: bounceIn 0.4s ease;
-}
-
-@keyframes toastIn {
-  from { opacity: 0; transform: translateY(20px) scale(0.95); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
-}
-
-@keyframes bounceIn {
-  0% { transform: scale(0.5); }
-  70% { transform: scale(1.2); }
-  100% { transform: scale(1); }
 }
 
 /* PIN Lock Modal */
@@ -410,7 +358,7 @@ label {
 .pin-digit {
   width: 48px;
   height: 58px;
-  font-size: 28px;
+  font-size: calc(28px * var(--font-scale, 1));
   text-align: center;
   border-radius: 10px;
   border: 2px solid var(--border);
@@ -466,7 +414,7 @@ label {
   border-radius: 999px;
   background: var(--card-subtle);
   border: 1px solid var(--border);
-  font-size: 13px;
+  font-size: calc(13px * var(--font-scale, 1));
   font-weight: 600;
 }
 
@@ -503,7 +451,7 @@ label {
   padding: 10px 16px;
   border-radius: 12px;
   font-weight: 700;
-  font-size: 16px;
+  font-size: calc(16px * var(--font-scale, 1));
   margin-bottom: 12px;
 }
 .bucket-banner-morning { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
@@ -533,25 +481,6 @@ label {
 @keyframes pulseAlert {
   from { box-shadow: 0 0 10px rgba(220, 38, 38, 0.4); }
   to { box-shadow: 0 0 25px rgba(220, 38, 38, 0.85); }
-}
-
-/* Voice Button */
-.btn-voice {
-  background: var(--accent-light);
-  color: var(--accent);
-  border: 1px solid var(--accent);
-  border-radius: 8px;
-  padding: 6px 10px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-.btn-voice:hover {
-  background: var(--accent);
-  color: white;
 }
 
 /* Pill Box Refill Organizer Grid */
@@ -587,5 +516,5 @@ label {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  font-size: 11px;
+  font-size: calc(11px * var(--font-scale, 1));
 }

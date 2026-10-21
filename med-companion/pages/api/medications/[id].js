@@ -1,10 +1,15 @@
+import { medicationInput, publicMedication } from "../../../lib/validation";
+import { buildTodaySchedule } from "../../../lib/schedule";
+import { secureApi } from "../../../lib/apiSecurity";
+import { requireCaregiver } from "../../../lib/auth";
 import { daysRemaining } from "../../../lib/supply";
 import { readDB, writeDB, logAgentActivity } from "../../../lib/db";
 import { checkMedicationInteractions } from "../../../lib/interactions";
 
-export default function handler(req, res) {
+function handler(req, res) {
   const { id } = req.query;
   const db = readDB();
+  if (req.method !== "GET" && !requireCaregiver(req, res, db)) return;
 
   const medIndex = db.medications.findIndex((m) => m.id === id);
   if (medIndex === -1) {
@@ -14,14 +19,12 @@ export default function handler(req, res) {
   const existing = db.medications[medIndex];
 
   if (req.method === "GET") {
-    return res.status(200).json(existing);
+    return res.status(200).json(publicMedication(existing));
   }
 
   // Update medication fields
   if (req.method === "PUT" || req.method === "PATCH") {
-    const updates = req.body || {};
-    if (updates.pillPhoto && (!/^data:image\/(jpeg|png|webp);base64,/.test(updates.pillPhoto) || updates.pillPhoto.length > 820000)) return res.status(400).json({error: "Invalid pill photo"});
-    if (updates.currentSupply !== undefined && updates.currentSupply !== null && (!Number.isFinite(updates.currentSupply) || updates.currentSupply < 0)) return res.status(400).json({error: "Supply must be a non-negative number"});
+    const updates = medicationInput(req.body, { partial: true });
     const updated = {
       ...existing,
       ...updates,
@@ -30,9 +33,17 @@ export default function handler(req, res) {
     };
 
     // If supply replenished (> 5), acknowledge any active refill alerts for this medication
-    if (typeof updates.currentSupply === "number" && daysRemaining(updated) > 5) {
+    if (
+      typeof updates.currentSupply === "number" &&
+      daysRemaining(updated) > 5
+    ) {
       db.alerts.forEach((a) => {
-        if (a.type === "refill_low" && (a.medicationId === updated.id || (!a.medicationId && a.medicationName === updated.name)) && !a.acknowledged) {
+        if (
+          a.type === "refill_low" &&
+          (a.medicationId === updated.id ||
+            (!a.medicationId && a.medicationName === updated.name)) &&
+          !a.acknowledged
+        ) {
           a.acknowledged = true;
           a.acknowledgedAt = new Date().toISOString();
         }
@@ -40,6 +51,21 @@ export default function handler(req, res) {
     }
 
     db.medications[medIndex] = updated;
+    if (updated.retired)
+      db.doses = db.doses.filter(
+        (d) => !(d.medicationId === id && d.status === "pending"),
+      );
+    else if (existing.retired) {
+      const fresh = buildTodaySchedule(db.person, [updated]).filter(
+        (d) =>
+          !db.doses.some(
+            (saved) =>
+              saved.medicationId === id &&
+              saved.scheduledTime === d.scheduledTime,
+          ),
+      );
+      db.doses.push(...fresh);
+    }
 
     logAgentActivity(
       db,
@@ -47,11 +73,11 @@ export default function handler(req, res) {
       `Medication updated: ${updated.name} (Supply: ${updated.currentSupply ?? 30} pills, Status: ${
         updated.retired ? "Retired" : "Active"
       })`,
-      { medicationId: id, updates }
+      { medicationId: id, changedFields: Object.keys(updates) },
     );
 
     writeDB(db);
-    return res.status(200).json({ medication: updated });
+    return res.status(200).json({ medication: publicMedication(updated) });
   }
 
   // Retire / delete medication
@@ -62,26 +88,29 @@ export default function handler(req, res) {
 
     // Remove any pending doses for this retired medication so they don't escalate
     const initialPendingCount = db.doses.filter(
-      (d) => d.medicationId === id && d.status === "pending"
+      (d) => d.medicationId === id && d.status === "pending",
     ).length;
 
     db.doses = db.doses.filter(
-      (d) => !(d.medicationId === id && d.status === "pending")
+      (d) => !(d.medicationId === id && d.status === "pending"),
     );
 
     logAgentActivity(
       db,
       "replan",
       `Medication retired: ${existing.name}. Removed ${initialPendingCount} pending dose(s).`,
-      { medicationId: id, retiredAt: existing.retiredAt }
+      { medicationId: id, retiredAt: existing.retiredAt },
     );
 
     writeDB(db);
     return res.status(200).json({
       message: `Medication '${existing.name}' has been retired.`,
-      medication: existing,
+      medication: publicMedication(existing),
     });
   }
 
   res.status(405).json({ error: "Use GET, PUT, or DELETE" });
 }
+
+export default secureApi(handler, { role: "device" });
+export const config = { api: { bodyParser: { sizeLimit: "1mb" } } };

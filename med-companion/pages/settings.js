@@ -1,8 +1,11 @@
+import { setOfflineAccess } from "../lib/offline";
+import { OfflineSettings } from "../components/DeviceSupport";
+import Reminders from "../components/Reminders";
 import { useState, useEffect } from "react";
 import { useApp } from "./_app";
 
 export default function Settings() {
-  const { t, showToast, lang, setLang, theme, setTheme } = useApp();
+  const { t, showToast, lang, setLang, theme, setTheme, fontScale, setFontScale } = useApp();
   const [person, setPerson] = useState({
     name: "Elder",
     wake: "07:00",
@@ -10,7 +13,7 @@ export default function Settings() {
     lunch: "13:00",
     dinner: "19:00",
     sleep: "22:00",
-    pin: "1234",
+    pin: "",
     pinEnabled: true,
   });
   const [caregivers, setCaregivers] = useState([]);
@@ -23,7 +26,7 @@ export default function Settings() {
         const res = await fetch("/api/settings");
         if (res.ok) {
           const data = await res.json();
-          if (data.person) setPerson(data.person);
+          if (data.person) setPerson({ ...data.person, pin: "" });
           if (data.caregivers) setCaregivers(data.caregivers);
         }
       } catch (e) {
@@ -96,11 +99,24 @@ export default function Settings() {
     <div>
       <h1>⚙️ {t("settings")}</h1>
 
+      <section className="card text-settings">
+        <h2>👓 Text size</h2><p>Adjust the text throughout Companion. Changes save automatically on this device and to your profile when connected.</p>
+        <label htmlFor="font-scale">Text size: <output htmlFor="font-scale">{fontScale}%</output></label>
+        <input id="font-scale" type="range" min="100" max="225" step="5" value={fontScale} onChange={e => setFontScale(Number(e.target.value))} aria-valuetext={`${fontScale} percent`} />
+        <div className="scale-labels"><span>100%</span><span>225%</span></div><p className="scale-preview">💊 Your medicines, easy to read.</p>
+        <button className="btn btn-secondary" onClick={() => setFontScale(100)}>Reset text size</button>
+      </section>
+      <section className="card"><h2>🔒 Trusted device</h2><p>This device can view your medicines for up to 30 days. Locking caregiver views keeps the elder’s daily schedule available. Forget this device to revoke access and remove its saved schedules.</p><button type="button" className="btn btn-secondary" onClick={async()=>{
+        try { const response=await fetch("/api/settings?forget=true",{method:"DELETE"});if(!response.ok)throw new Error();await setOfflineAccess(false).catch(()=>{});localStorage.removeItem("companion-device-authorized");localStorage.removeItem("companion-local-reminders");location.assign("/"); }
+        catch { showToast("Reconnect to revoke this device safely.","warn"); }
+      }}>Forget this device</button></section>
+      <OfflineSettings />
+      <Reminders />
       <form onSubmit={handleSave}>
         {/* Elder Routine Anchors */}
         <h2>🕒 {t("routineTimes")}</h2>
         <div className="card">
-          <p style={{ fontSize: 14, color: "var(--muted)", margin: "0 0 16px" }}>
+          <p style={{ fontSize: "calc(14px * var(--font-scale, 1))", color: "var(--muted)", margin: "0 0 16px" }}>
             Prescription dosages (e.g. &ldquo;with meals&rdquo;, &ldquo;twice daily&rdquo;) dynamically anchor to these daily times.
           </p>
 
@@ -174,19 +190,22 @@ export default function Settings() {
               onChange={(e) => updatePerson("pinEnabled", e.target.checked)}
               style={{ width: "auto", marginRight: 10, marginBottom: 0 }}
             />
-            Require 4-digit PIN for Caregiver Dashboard &amp; Settings
+            Require caregiver PIN for Caregiver Dashboard &amp; Settings
           </label>
 
           {person.pinEnabled && (
             <div style={{ maxWidth: 220 }}>
-              <label>4-Digit Caregiver PIN</label>
+              <label>New 6–12 digit PIN (leave blank to keep current PIN)</label>
               <input
                 type="password"
-                maxLength={4}
+                minLength={6}
+                maxLength={12}
                 value={person.pin || ""}
                 onChange={(e) => updatePerson("pin", e.target.value)}
-                placeholder="1234"
-                style={{ fontSize: 20, letterSpacing: 4 }}
+                placeholder="New PIN"
+                inputMode="numeric"
+                pattern="[0-9]{6,12}"
+                style={{ fontSize: "calc(20px * var(--font-scale, 1))", letterSpacing: 4 }}
               />
             </div>
           )}
@@ -210,7 +229,7 @@ export default function Settings() {
                   <button
                     type="button"
                     className="btn btn-skip"
-                    style={{ fontSize: 12, padding: "4px 8px" }}
+                    style={{ fontSize: "calc(12px * var(--font-scale, 1))", padding: "4px 8px" }}
                     onClick={() => removeCaregiver(idx)}
                   >
                     Remove
@@ -252,7 +271,7 @@ export default function Settings() {
             type="button"
             className="btn btn-secondary"
             onClick={addCaregiver}
-            style={{ fontSize: 14 }}
+            style={{ fontSize: "calc(14px * var(--font-scale, 1))" }}
           >
             + Add Another Caregiver
           </button>
@@ -260,7 +279,7 @@ export default function Settings() {
 
         {/* Save Button */}
         <div style={{ marginTop: 24 }}>
-          <button type="submit" className="btn btn-primary" disabled={saving} style={{ fontSize: 18 }}>
+          <button type="submit" className="btn btn-primary" disabled={saving} style={{ fontSize: "calc(18px * var(--font-scale, 1))" }}>
             {saving ? "Saving changes…" : `💾 ${t("saveChanges")}`}
           </button>
         </div>

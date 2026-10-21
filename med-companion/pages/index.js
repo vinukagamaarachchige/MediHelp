@@ -1,10 +1,13 @@
+import MedicationInfo from "../components/MedicationInfo";
+import { isOverdue } from "../lib/doseState";
+import Icon from "../components/Icon";
 import Reminders from "../components/Reminders";
 import { daysRemaining } from "../lib/supply";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { DISCLAIMER } from "../lib/safety";
 import { useApp } from "./_app";
-import { speakDoseReminder, speakDoubleDoseWarning, playChime } from "../lib/tts";
+import { playChime } from "../lib/audio";
 import { getPillColorHex, getRoutineBucket, getBucketMeta, routineLabel } from "../lib/pills";
 
 function formatTime(iso) {
@@ -12,32 +15,21 @@ function formatTime(iso) {
 }
 
 export default function Home() {
-  const { t, lang, showToast } = useApp();
+  const { t, lang, showToast, requestUnlock } = useApp();
   const [doses, setDoses] = useState([]);
   const [medications, setMedications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [checking, setChecking] = useState(false);
-  const [simpleMode, setSimpleMode] = useState(false);
+  const [detailDose, setDetailDose] = useState(null);
+  const [offlineSnapshot, setOfflineSnapshot] = useState(false);
+  const [savedAt, setSavedAt] = useState(null);
+  const [loadError, setLoadError] = useState("");
+  const [helpBusy, setHelpBusy] = useState(false);
+  const [clock, setClock] = useState(Date.now());
+  const actionRef = useRef(false);
+  const dayRef = useRef(new Date().toDateString());
   const [viewMode, setViewMode] = useState("buckets"); // "buckets" | "timeline"
   const [actionDoseId, setActionDoseId] = useState(null);
-  const [listening, setListening] = useState(null);
-  async function voiceConfirm(dose) {
-    const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!Recognition) return showToast("Voice confirmation is unavailable in this browser. Use Taken.", "warn");
-    const recognition = new Recognition();
-    recognition.lang = lang === "si" ? "si-LK" : "en-US";
-    recognition.interimResults = false;
-    setListening(dose.id);
-    recognition.onresult = event => {
-      const phrase = event.results[0][0].transcript.trim().toLowerCase().replace(/[.!?。]$/, "");
-      if (["taken", "ගත්තා"].includes(phrase)) setStatus(dose.id, "taken");
-      else showToast("Not confirmed. Say Taken / ගත්තා, or use the Taken button.", "warn");
-    };
-    recognition.onerror = () => showToast("Microphone unavailable. Use the Taken button.", "warn");
-    recognition.onend = () => setListening(null);
-    recognition.start();
-  }
-
   // Double-Dose Protection Modal State
   const [doubleDoseModal, setDoubleDoseModal] = useState(null);
 
@@ -47,13 +39,19 @@ export default function Home() {
         fetch("/api/schedule"),
         fetch("/api/medications"),
       ]);
+      if (!schedRes.ok || !medsRes.ok) throw new Error("Could not load a recent schedule. Please reconnect and retry.");
+      const fromCache = schedRes.headers.get("X-Companion-Offline") === "true";
+      setOfflineSnapshot(fromCache || !navigator.onLine);
+      setSavedAt(schedRes.headers.get("X-Companion-Saved-At"));
+      setLoadError("");
       const schedData = await schedRes.json();
+      if (fromCache && new Date(schedRes.headers.get("X-Companion-Saved-At")).toDateString() !== new Date().toDateString()) { setDoses([]); throw new Error("The saved schedule is from an earlier day. Reconnect to get today’s schedule."); }
       const medsData = await medsRes.json();
 
       setDoses(Array.isArray(schedData) ? schedData : []);
       setMedications(medsData.medications || []);
     } catch (err) {
-      console.error("Failed to load schedule", err);
+      setLoadError(err.message); setOfflineSnapshot(true);
     } finally {
       setLoading(false);
     }
@@ -61,9 +59,15 @@ export default function Home() {
 
   useEffect(() => {
     loadData();
+    const offline = () => setOfflineSnapshot(true);
+    window.addEventListener("online", loadData); window.addEventListener("offline", offline);
+    const timer = setInterval(() => { setClock(Date.now()); if (dayRef.current !== new Date().toDateString()) { dayRef.current = new Date().toDateString(); setDoses([]); loadData(); } }, 30000);
+    return () => { clearInterval(timer); window.removeEventListener("online", loadData); window.removeEventListener("offline", offline); };
   }, []);
 
   async function setStatus(doseId, status) {
+    if (actionRef.current || offlineSnapshot || !navigator.onLine) return showToast("Reconnect before confirming a dose.", "warn");
+    actionRef.current = true;
     setActionDoseId(doseId);
     try {
       const res = await fetch(`/api/doses/${doseId}/status`, {
@@ -73,6 +77,9 @@ export default function Home() {
       });
       if (!res.ok) { const error = await res.json(); throw new Error(error.error); }
       if (res.ok) {
+        const result = await res.json();
+        setDoses(prev => prev.map(d => d.id === doseId ? {...d,...result.dose,medication: result.medication || d.medication} : d));
+        if (result.medication) setMedications(prev => prev.map(m => m.id === result.medication.id ? result.medication : m));
         if (status === "taken") {
           playChime("success");
           showToast(t("doseTakenToast"), "success");
@@ -83,6 +90,7 @@ export default function Home() {
     } catch (err) {
       showToast("Error updating status", "warn");
     } finally {
+      actionRef.current = false;
       setActionDoseId(null);
       loadData();
     }
@@ -99,12 +107,7 @@ export default function Home() {
     );
     const nextTime = nextPending ? formatTime(nextPending.scheduledTime) : "tomorrow";
 
-    speakDoubleDoseWarning({
-      medicationName: med.name || "Medication",
-      takenAt,
-      nextTime,
-      lang,
-    });
+    playChime("warning");
 
     setDoubleDoseModal({
       medicationName: med.name || "Medication",
@@ -114,28 +117,12 @@ export default function Home() {
     });
   }
 
-  // Trigger voice readout
-  function handleVoiceReadout(dose) {
-    const med = dose.medication || {};
-    const timingLabel = routineLabel(dose, med, lang);
-
-    speakDoseReminder({
-      medicationName: med.name,
-      strength: med.strength,
-      dose: med.dose || "1 tablet",
-      timingLabel,
-      time: formatTime(dose.scheduledTime),
-      pillColor: med.pillColor || "white",
-      pillShape: med.pillShape || "round",
-      lang,
-    });
-  }
-
   // Advance time button to demo missed-dose escalation
   async function checkMissed() {
     setChecking(true);
     try {
       const res = await fetch("/api/doses/check-missed", { method: "POST" });
+      if (!res.ok) throw new Error("Check failed");
       const { newAlerts } = await res.json();
       loadData();
       if (newAlerts && newAlerts.length > 0) {
@@ -160,6 +147,12 @@ export default function Home() {
     (m) => !m.retired && daysRemaining(m) !== null && daysRemaining(m) <= 5
   );
 
+  const overdueDoses = doses.filter(d => isOverdue(d, clock));
+  async function alertCaregiver() {
+    setHelpBusy(true);
+    try { const response = await fetch("/api/caregiver-help", {method:"POST"}); const data = await response.json(); if (!response.ok) throw new Error(data.error); showToast(data.message, "success"); } catch(error) { showToast(error.message, "warn"); } finally { setHelpBusy(false); }
+  }
+
   // Group doses into routine buckets (morning, afternoon, evening, night)
   const buckets = {
     morning: [],
@@ -177,319 +170,60 @@ export default function Home() {
     }
   });
 
-  // Render an individual dose card
+  const takenCount = doses.filter(d => d.status === "taken").length;
+  const pendingCount = doses.filter(d => d.status === "pending").length;
+  const nextDose = doses.find(d => d.status === "pending");
+  const dateLabel = new Date().toLocaleDateString(lang === "si" ? "si-LK" : "en-GB", { weekday: "long", day: "numeric", month: "long" });
   function renderDoseCard(dose) {
     const med = dose.medication || {};
-    const isCurrentAction = actionDoseId === dose.id;
-    const isTaken = dose.status === "taken";
-    const timingLabel = routineLabel(dose, med, lang);
-
-    const colorMeta = getPillColorHex(med.pillColor);
-    const pillShapeClass =
-      med.pillShape === "capsule"
-        ? "pill-shape-capsule"
-        : med.pillShape === "oval"
-        ? "pill-shape-oval"
-        : "pill-shape-round";
-
-    // Double-Dose Protection Card if already taken
-    if (isTaken) {
-      return (
-        <div
-          className="card dose-locked-card"
-          key={dose.id}
-          onClick={() => handleTakenDoseClick(dose)}
-          title="Click to check dose status"
-        >
-          <div className="dose-row">
-            <div>
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <span style={{ fontSize: 24 }}>🛡️</span>
-                <strong style={{ fontSize: simpleMode ? 26 : 20, color: "var(--ok)" }}>
-                  {t("doubleDoseLocked")}
-                </strong>
-                <span className="status-pill status-taken">✓ {formatTime(dose.confirmedAt || dose.scheduledTime)}</span>
-              </div>
-              <div className="dose-name" style={{ marginTop: 6, fontSize: simpleMode ? 28 : 20 }}>
-                {med.name} {med.strength && `(${med.strength})`}
-              </div>
-              <p style={{ margin: "4px 0 0", fontSize: simpleMode ? 18 : 13, color: "var(--ok)", fontWeight: 600 }}>
-                {t("doNotTakeAgain")} {doses.find(d => d.medicationId === dose.medicationId && d.status === "pending" && new Date(d.scheduledTime) > new Date(dose.scheduledTime)) ? formatTime(doses.find(d => d.medicationId === dose.medicationId && d.status === "pending" && new Date(d.scheduledTime) > new Date(dose.scheduledTime)).scheduledTime) : (lang === "si" ? "හෙට" : "Next scheduled day") }
-              </p>
-            </div>
-            <button
-              className="btn-voice"
-              style={{ fontSize: 13 }}
-              onClick={(e) => {
-                e.stopPropagation();
-                handleTakenDoseClick(dose);
-              }}
-            >
-              🔒 Check
-            </button>
-          </div>
-        </div>
-      );
-    }
-
-    return (
-      <div
-        className="card"
-        key={dose.id}
-        style={{
-          borderLeft:
-            dose.status === "missed"
-              ? "6px solid var(--danger)"
-              : dose.status === "skipped"
-              ? "6px solid var(--warn)"
-              : "6px solid var(--accent)",
-        }}
-      >
-        <div className="dose-row">
-          <div>
-            <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-              {med.pillPhoto && <img src={med.pillPhoto} alt="Pill or blister pack reference" style={{ width: 80, height: 80, objectFit: "contain" }} />}
-              <div className="dose-time">{timingLabel}<small style={{display:"block"}}>{formatTime(dose.scheduledTime)}</small></div>
-
-              {/* Visual Pill Badge (Color & Shape) */}
-              <div className="pill-badge">
-                <span
-                  className={`pill-shape-icon ${pillShapeClass}`}
-                  style={{
-                    backgroundColor: colorMeta.hex,
-                    border: `1px solid ${colorMeta.border}`,
-                  }}
-                />
-                <span>
-                  {med.pillColor ? med.pillColor.toUpperCase() : "WHITE"} {med.pillShape || "TABLET"}
-                </span>
-              </div>
-
-              {/* Voice Readout Button */}
-              <button
-                className="btn-voice"
-                onClick={() => handleVoiceReadout(dose)}
-                title="Listen to dose reminder aloud"
-              >
-                🔊 {t("readAloud")}
-              </button>
-            </div>
-
-            <div className="dose-name" style={{ marginTop: 8 }}>
-              {med.name} {med.pillImprint && <small> · {med.pillImprint}</small>}
-            </div>
-
-            <div className="dose-sub">
-              {med.strength} {med.dose ? `· ${med.dose}` : ""} · {timingLabel}
-            </div>
-
-            <div style={{ marginTop: 8 }}>
-              <span className={`status-pill status-${dose.status}`}>
-                {t(dose.status) || dose.status}
-              </span>
-              {med.criticality === "critical" && (
-                <span className="status-pill status-missed" style={{ marginLeft: 8 }}>
-                  {t("critical")}
-                </span>
-              )}
-            </div>
-          </div>
-
-          {dose.status === "pending" && (
-            <div style={{ display: "flex", gap: simpleMode ? 16 : 10, marginTop: simpleMode ? 16 : 0 }}>
-              <button className="btn btn-secondary" disabled={!!listening || !!actionDoseId} onClick={() => voiceConfirm(dose)}>{listening === dose.id ? "Listening…" : "🎤 Taken / ගත්තා"}</button>
-              <button
-                className="btn btn-taken"
-                onClick={() => setStatus(dose.id, "taken")}
-                disabled={isCurrentAction}
-              >
-                ✓ {t("taken")}
-              </button>
-              <button
-                className="btn btn-skip"
-                onClick={() => setStatus(dose.id, "skipped")}
-                disabled={isCurrentAction}
-              >
-                ✕ {t("skip")}
-              </button>
-            </div>
-          )}
-        </div>
+    const taken = dose.status === "taken";
+    const color = getPillColorHex(med.pillColor);
+    const next = doses.find(d => d.medicationId === dose.medicationId && d.status === "pending" && new Date(d.scheduledTime) > new Date(dose.scheduledTime));
+    return <article className={`card medication-card ${taken ? "dose-locked-card dose-completed" : ""} dose-${dose.status}`} key={dose.id}>
+      <div className="medication-card-top">
+        <span className="routine-label">{routineLabel(dose, med, lang)}</span>
+        <span className="scheduled-time">{formatTime(dose.scheduledTime)}</span>
       </div>
-    );
+      <div className="medication-identity" onClick={event => { if (!event.target.closest("button")) setDetailDose(dose); }}>
+        <div className="pill-portrait">
+          {med.pillPhoto ? <img src={med.pillPhoto} alt="Actual pill or blister pack" /> : <span className={`pill-shape-icon pill-shape-${med.pillShape || "round"}`} style={{ backgroundColor: color.hex, border: `2px solid ${color.border}` }} />}
+        </div>
+        <div className="medication-copy">
+          <h3 className="dose-name"><button className="medication-details-trigger" onClick={() => setDetailDose(dose)} aria-label={`View details for ${med.name}`}>{med.name || "Medication"}<span className="details-hint">ⓘ</span></button></h3>
+          <p className="dose-sub">{med.dose || "1 dose"}{med.strength && ` · ${med.strength}`}</p>
+          <p className="appearance-label">{med.pillColor || "white"} {med.pillShape || "tablet"}{med.pillImprint && ` · ${med.pillImprint}`}</p>
+        </div>
+        {taken && <span className="taken-symbol"><Icon name="check" size={26}/></span>}
+      </div>
+      {taken ? <div className="taken-receipt">
+        <div><strong><Icon name="lock" size={17}/> {t("taken")} · {formatTime(dose.confirmedAt || dose.scheduledTime)}</strong><p>{lang === "si" ? "මෙම මාත්‍රාව නැවත ගන්න එපා." : "This dose is complete. Do not take it again."}{next && <> {lang === "si" ? "ඊළඟ මාත්‍රාව:" : "Next dose:"} {formatTime(next.scheduledTime)}.</>}</p></div>
+        <button className="btn btn-secondary dose-status-button" onClick={() => handleTakenDoseClick(dose)}><Icon name="lock"/><span>{lang === "si" ? "තත්ත්වය බලන්න" : "Check status"}</span></button>
+      </div> : dose.status === "pending" ? <div className="dose-actions">
+        <button className="btn btn-taken" disabled={!!actionDoseId || offlineSnapshot} aria-busy={actionDoseId === dose.id} onClick={() => setStatus(dose.id, "taken")}><Icon name="check"/>{actionDoseId === dose.id ? "Saving…" : t("taken")}</button>
+        <button className="btn skip-dose" disabled={!!actionDoseId || offlineSnapshot} onClick={() => setStatus(dose.id, "skipped")}><span className="recognition-emoji" aria-hidden="true">⏭️</span>{t("skip")}</button>
+      </div> : <div className="dose-state-line"><span className={`status-pill status-${dose.status}`}>{t(dose.status)}</span></div>}
+      {med.criticality === "critical" && <p className="critical-note"><span className="warning-triangle" aria-hidden="true">⚠️</span><strong>{t("critical")}</strong></p>}
+    </article>;
   }
-
-  return (
-    <div className={simpleMode ? "simple-mode" : ""}>
-      {/* Header with Simple Mode & View Mode Toggles */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          flexWrap: "wrap",
-          marginBottom: 16,
-          gap: 12,
-        }}
-      >
-        <h1>{t("today")}</h1><Reminders />
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          {/* View mode toggle */}
-          <button
-            className="btn btn-secondary"
-            style={{ fontSize: 13, padding: "8px 14px" }}
-            onClick={() => setViewMode(viewMode === "buckets" ? "timeline" : "buckets")}
-          >
-            {viewMode === "buckets" ? `🕒 ${t("timelineView")}` : `🌅 ${t("bucketView")}`}
-          </button>
-
-          {/* Simple Mode Toggle */}
-          <button
-            className="btn btn-secondary"
-            onClick={() => setSimpleMode(!simpleMode)}
-            style={{ fontSize: simpleMode ? 20 : 14, padding: simpleMode ? "14px 24px" : "8px 16px" }}
-          >
-            {simpleMode ? `👓 ${t("normalMode")}` : `👴 ${t("simpleMode")}`}
-          </button>
-        </div>
-      </div>
-
-      {!simpleMode && <div className="disclaimer">{DISCLAIMER}</div>}
-
-      {/* Low Supply Alert Warning Banner */}
-      {lowSupplyMeds.length > 0 && (
-        <div
-          style={{
-            background: "var(--warn-bg)",
-            border: "2px solid var(--warn)",
-            borderRadius: 12,
-            padding: "14px 18px",
-            marginBottom: 20,
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            flexWrap: "wrap",
-            gap: 10,
-          }}
-        >
-          <div>
-            <strong>⚠️ {t("lowSupplyWarning")}</strong>
-            <ul style={{ margin: "4px 0 0", paddingLeft: 20, fontSize: 14 }}>
-              {lowSupplyMeds.map((m) => (
-                <li key={m.id}>
-                  <strong>{m.name}</strong>: {m.currentSupply} {t("pillsRemaining")}
-                </li>
-              ))}
-            </ul>
-          </div>
-          <Link href="/pillbox" className="btn btn-primary" style={{ textDecoration: "none", fontSize: 13 }}>
-            📦 Open Pill Box Refill
-          </Link>
-        </div>
-      )}
-
-      {doses.length === 0 && (
-        <div className="card" style={{ textAlign: "center", padding: "40px 20px" }}>
-          <p style={{ fontSize: simpleMode ? 26 : 18 }}>{t("noDosesToday")}</p>
-        </div>
-      )}
-
-      {/* Routine Buckets View (Morning, Afternoon, Evening, Night) */}
-      {viewMode === "buckets" && doses.length > 0 && (
-        <div>
-          {["morning", "afternoon", "evening", "night"].map((bucketKey) => {
-            const bucketDoses = buckets[bucketKey];
-            if (bucketDoses.length === 0) return null;
-            const meta = getBucketMeta(bucketKey);
-
-            return (
-              <div className="routine-bucket-group" key={bucketKey}>
-                <div className={`bucket-banner bucket-banner-${bucketKey}`}>
-                  <span>
-                    {meta.icon} {t(meta.titleKey)}
-                  </span>
-                  <span style={{ fontSize: 13, fontWeight: 500, opacity: 0.9 }}>
-                    {meta.timeRange}
-                  </span>
-                </div>
-                {bucketDoses.map((dose) => renderDoseCard(dose))}
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Chronological Timeline View */}
-      {viewMode === "timeline" && doses.length > 0 && (
-        <div>
-          {doses.map((dose) => renderDoseCard(dose))}
-        </div>
-      )}
-
-      {!simpleMode && (
-        <>
-          <h2>{t("demoTools")}</h2>
-          <div className="card">
-            <p className="dose-sub" style={{ marginBottom: 12 }}>
-              In real use, missed-dose checks run on a background timer. For testing, simulate the clock:
-            </p>
-            <button className="btn btn-primary" onClick={checkMissed} disabled={checking}>
-              ⏱️ {checking ? "Checking…" : t("checkMissedBtn")}
-            </button>
-          </div>
-        </>
-      )}
-
-      {/* Accidental Double-Dose Protection Modal */}
-      {doubleDoseModal && (
-        <div className="modal-overlay">
-          <div
-            className="modal-content pulse-warning"
-            style={{
-              border: "3px solid var(--danger)",
-              maxWidth: 480,
-              padding: 28,
-            }}
-          >
-            <span style={{ fontSize: 44 }}>🛑</span>
-            <h2 style={{ color: "var(--danger)", margin: "10px 0" }}>
-              {t("doubleDoseWarningTitle")}
-            </h2>
-            <div
-              style={{
-                background: "var(--card-subtle)",
-                borderRadius: 10,
-                padding: "14px 16px",
-                margin: "14px 0",
-                fontSize: 15,
-                textAlign: "left",
-              }}
-            >
-              <p style={{ margin: "0 0 6px" }}>
-                <strong>Medication:</strong> {doubleDoseModal.medicationName}
-              </p>
-              <p style={{ margin: "0 0 6px", color: "var(--ok)", fontWeight: 700 }}>
-                ✓ {t("takenAtTime")}: {doubleDoseModal.takenAt}
-              </p>
-              <p style={{ margin: 0, color: "var(--muted)" }}>
-                Next scheduled dose: <strong>{doubleDoseModal.nextTime}</strong>
-              </p>
-            </div>
-            <p style={{ fontSize: 14, color: "var(--text)", lineHeight: 1.5 }}>
-              {t("doubleDoseWarningBody")}
-            </p>
-            <div style={{ marginTop: 22 }}>
-              <button
-                className="btn btn-primary"
-                style={{ width: "100%", fontSize: 16 }}
-                onClick={() => setDoubleDoseModal(null)}
-              >
-                ✓ I Understand (Do Not Retake)
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+  return <div className="today-page">
+    <div className="page-heading">
+      <div><p className="eyebrow">{dateLabel}</p><h1>{lang === "si" ? "අද ඔබේ ඖෂධ" : "Your medicines today"}</h1><p className="page-intro">{lang === "si" ? "එක් වරකට එක් පියවරක්. ඔබේ දෛනික රටාව මෙතැනින්." : "One step at a time. Your daily routine, right here."}</p></div>
+      <button className="btn btn-secondary type-toggle" onClick={() => requestUnlock("/settings")}><span className="recognition-emoji" aria-hidden="true">👓</span>{lang === "si" ? "අකුරු ප්‍රමාණය" : "Text size settings"}</button>
     </div>
-  );
+    {loadError && <aside className="overdue-banner" role="alert"><p>{loadError}</p><button className="btn btn-secondary" onClick={loadData}>Try again</button></aside>}
+    {offlineSnapshot && doses.length > 0 && <aside className="offline-snapshot" role="status">📴 Saved schedule — read-only{savedAt && ` · Last refreshed ${new Date(savedAt).toLocaleString()}`}. Reconnect before confirming any dose.</aside>}
+    {overdueDoses.length > 0 && <aside className="overdue-banner"><h2>⚠️ {overdueDoses.length} overdue dose{overdueDoses.length === 1 ? "" : "s"} need attention</h2><p>{overdueDoses.map(d => d.medication?.name).join(", ")}. Check the recorded missed-dose instructions or ask your pharmacist.</p><div className="banner-actions"><button className="btn btn-secondary" disabled={checking || offlineSnapshot} onClick={checkMissed}>{checking ? "Checking…" : "Review missed doses"}</button><button className="btn btn-primary" disabled={helpBusy || offlineSnapshot} onClick={alertCaregiver}>{helpBusy ? "Sending…" : "🤝 Ask caregiver for help"}</button></div></aside>}
+    {doses.length > 0 && <section className="daily-overview" aria-label="Daily progress">
+      <div className="overview-main"><span className="eyebrow">{lang === "si" ? "අද ප්‍රගතිය" : "TODAY’S PROGRESS"}</span><p><strong>{takenCount}</strong><span> / {doses.length} {lang === "si" ? "මාත්‍රා සම්පූර්ණයි" : "doses taken"}</span></p><div className="progress-track" role="progressbar" aria-valuenow={takenCount} aria-valuemin={0} aria-valuemax={doses.length} aria-label="Doses taken"><span style={{width: `${takenCount / doses.length * 100}%`}} /></div></div>
+      <div className="overview-next"><span className="overview-icon"><Icon name={pendingCount ? "pill" : "check"} size={26}/></span><div><span className="eyebrow">{pendingCount ? (lang === "si" ? "ඊළඟට" : "NEXT ON YOUR SCHEDULE") : (lang === "si" ? "අද රටාව" : "TODAY’S ROUTINE")}</span><p>{nextDose ? nextDose.medication?.name : (lang === "si" ? "තවත් මාත්‍රා නැත" : "No pending doses")}</p>{nextDose && <span className="overview-detail">{routineLabel(nextDose, nextDose.medication || {}, lang)} · {formatTime(nextDose.scheduledTime)}</span>}</div></div>
+    </section>}
+    {lowSupplyMeds.length > 0 && <aside className="supply-notice"><div><strong><span aria-hidden="true">⚠️ </span>{t("lowSupplyWarning")}</strong><p>{lowSupplyMeds.map(m => m.name).join(", ")} · {lang === "si" ? "නැවත ඖෂධ ලබාගැනීමට සැලසුම් කරන්න" : "Plan a refill soon"}</p></div><Link href="/pillbox" className="text-link">{lang === "si" ? "පෙති පෙට්ටිය" : "Review supply"}<Icon name="arrow" size={18}/></Link></aside>}
+    {doses.length === 0 ? <section className="card empty-schedule"><span className="empty-icon"><Icon name="pill" size={36}/></span><h2>{t("noDosesToday")}</h2><p>{lang === "si" ? "ඔබේ දිනපතා රටාව බැලීමට ඖෂධ එකතු කරන්න." : "Add your medicines to see a clear daily routine."}</p><Link className="btn btn-primary" href="/prescription/new">{t("addPrescription")}<Icon name="arrow" size={18}/></Link></section> : <>
+      <div className="schedule-toolbar"><h2>{lang === "si" ? "ඔබේ දෛනික රටාව" : "Your daily routine"}</h2><button className="view-toggle" onClick={() => setViewMode(viewMode === "buckets" ? "timeline" : "buckets")}>{viewMode === "buckets" ? t("timelineView") : t("bucketView")}</button></div>
+      {viewMode === "buckets" ? ["morning", "afternoon", "evening", "night"].map(key => buckets[key].length > 0 && <section className="routine-bucket-group" key={key}><div className={`bucket-banner bucket-banner-${key}`}><span className="bucket-title">{t(getBucketMeta(key).titleKey)}</span><span className="bucket-count">{buckets[key].filter(d => d.status === "taken").length} / {buckets[key].length} {lang === "si" ? "සම්පූර්ණයි" : "complete"}</span></div>{buckets[key].map(renderDoseCard)}</section>) : doses.map(renderDoseCard)}
+    </>}
+    <footer className="today-footer"><p className="care-note">{DISCLAIMER}</p><details className="support-details"><summary>{lang === "si" ? "මතක් කිරීම් සහ සහාය" : "Reminders & support"}</summary><Reminders /><div className="missed-check"><p>Review the schedule for missed doses and update caregiver alerts.</p><button className="btn btn-secondary" onClick={checkMissed} disabled={checking}>{checking ? "Checking…" : t("checkMissedBtn")}</button></div></details></footer>
+    {detailDose && <MedicationInfo dose={detailDose} lang={lang} onClose={() => setDetailDose(null)} />}
+    {doubleDoseModal && <div className="modal-overlay"><div className="modal-content safety-dialog" role="dialog" aria-modal="true" aria-labelledby="safety-title"><span className="safety-dialog-icon"><Icon name="lock" size={30}/></span><h2 id="safety-title">{t("doubleDoseWarningTitle")}</h2><p className="safety-medication">{doubleDoseModal.medicationName}</p><div className="safety-facts"><p>{t("takenAtTime")} <strong>{doubleDoseModal.takenAt}</strong></p><p>Next scheduled dose <strong>{doubleDoseModal.nextTime}</strong></p></div><p>{t("doubleDoseWarningBody")}</p><button autoFocus className="btn btn-primary" onClick={() => setDoubleDoseModal(null)}>{lang === "si" ? "තේරුණා — නැවත ගන්නේ නැහැ" : "Understood — do not retake"}</button></div></div>}
+  </div>;
 }

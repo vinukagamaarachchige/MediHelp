@@ -34,3 +34,18 @@ Thumbs.db
 # VS Code
 .vscode/*
 !.vscode/launch.json
+
+.next-validation/
+
+.next-ui-check/
+
+# Local push keys and scheduler secret
+med-companion/data/push-keys.json
+
+.next-feature-check/
+
+.next-security-check/
+med-companion/data/*.tmp
+
+# Generated development / validation builds
+.next-*/

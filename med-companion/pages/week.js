@@ -35,7 +35,7 @@ export default function WeeklySchedule() {
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
         <h1>🗓️ {t("week")}</h1>
-        <span style={{ color: "var(--muted)", fontSize: 14 }}>7-Day Medication Plan</span>
+        <span style={{ color: "var(--muted)", fontSize: "calc(14px * var(--font-scale, 1))" }}>7-Day Medication Plan</span>
       </div>
 
       {/* 7-Day Quick Selector Tabs */}
@@ -65,13 +65,13 @@ export default function WeeklySchedule() {
                 textAlign: "center",
               }}
             >
-              <div style={{ fontSize: 13, fontWeight: 700, textTransform: "uppercase" }}>
+              <div style={{ fontSize: "calc(13px * var(--font-scale, 1))", fontWeight: 700, textTransform: "uppercase" }}>
                 {day.isToday ? `⭐ ${t("today")}` : day.dayName}
               </div>
-              <div style={{ fontSize: 15, fontWeight: 600, marginTop: 4 }}>
+              <div style={{ fontSize: "calc(15px * var(--font-scale, 1))", fontWeight: 600, marginTop: 4 }}>
                 {day.displayDate}
               </div>
-              <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 4 }}>
+              <div style={{ fontSize: "calc(11px * var(--font-scale, 1))", color: "var(--muted)", marginTop: 4 }}>
                 {day.doses.length} dose{day.doses.length === 1 ? "" : "s"}
               </div>
             </button>

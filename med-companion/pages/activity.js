@@ -60,15 +60,15 @@ export default function ActivityLogPage() {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10, marginBottom: 16 }}>
         <div>
           <h1>🤖 {t("activity")}</h1>
-          <p style={{ color: "var(--muted)", margin: 0, fontSize: 14 }}>
+          <p style={{ color: "var(--muted)", margin: 0, fontSize: "calc(14px * var(--font-scale, 1))" }}>
             Full autonomous agent trail: Plan → Monitor → Escalate → Re-plan
           </p>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
-          <button className="btn btn-secondary" onClick={loadLogs} style={{ fontSize: 13 }}>
+          <button className="btn btn-secondary" onClick={loadLogs} style={{ fontSize: "calc(13px * var(--font-scale, 1))" }}>
             🔄 Refresh
           </button>
-          <button className="btn btn-secondary" onClick={clearLogs} style={{ fontSize: 13, color: "var(--danger)" }}>
+          <button className="btn btn-secondary" onClick={clearLogs} style={{ fontSize: "calc(13px * var(--font-scale, 1))", color: "var(--danger)" }}>
             🗑️ Clear
           </button>
         </div>
@@ -80,7 +80,7 @@ export default function ActivityLogPage() {
           <button
             key={typ}
             className={`btn ${filterType === typ ? "btn-primary" : "btn-secondary"}`}
-            style={{ fontSize: 12, padding: "6px 12px", textTransform: "capitalize" }}
+            style={{ fontSize: "calc(12px * var(--font-scale, 1))", padding: "6px 12px", textTransform: "capitalize" }}
             onClick={() => setFilterType(typ)}
           >
             {typ === "all" ? "All Events" : `${TYPE_META[typ]?.icon || ""} ${typ}`}
@@ -123,7 +123,7 @@ export default function ActivityLogPage() {
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                       <span
                         style={{
-                          fontSize: 11,
+                          fontSize: "calc(11px * var(--font-scale, 1))",
                           fontWeight: 800,
                           padding: "3px 8px",
                           borderRadius: 6,
@@ -134,16 +134,16 @@ export default function ActivityLogPage() {
                       >
                         {meta.icon} {meta.label}
                       </span>
-                      <strong style={{ fontSize: 15 }}>{log.message}</strong>
+                      <strong style={{ fontSize: "calc(15px * var(--font-scale, 1))" }}>{log.message}</strong>
                     </div>
-                    <span style={{ fontSize: 12, color: "var(--muted)", whiteSpace: "nowrap" }}>
+                    <span style={{ fontSize: "calc(12px * var(--font-scale, 1))", color: "var(--muted)", whiteSpace: "nowrap" }}>
                       {new Date(log.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
                     </span>
                   </div>
 
                   {log.details && Object.keys(log.details).length > 0 && (
                     <details style={{ marginTop: 8 }}>
-                      <summary style={{ cursor: "pointer", fontSize: 12, color: "var(--muted)" }}>
+                      <summary style={{ cursor: "pointer", fontSize: "calc(12px * var(--font-scale, 1))", color: "var(--muted)" }}>
                         Event Payload &amp; Trace Details
                       </summary>
                       <pre
@@ -151,7 +151,7 @@ export default function ActivityLogPage() {
                           background: "var(--card-subtle)",
                           padding: 10,
                           borderRadius: 6,
-                          fontSize: 12,
+                          fontSize: "calc(12px * var(--font-scale, 1))",
                           overflowX: "auto",
                           margin: "6px 0 0",
                         }}

@@ -10,7 +10,7 @@ import { getPillColorHex } from "../lib/pills";
 const DAYS_OF_WEEK = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
 export default function PillboxAssistant() {
-  const { t, showToast } = useApp();
+  const { t, showToast, isUnlocked, requestUnlock } = useApp();
   const [medications, setMedications] = useState([]);
   const [person, setPerson] = useState({});
   const [loading, setLoading] = useState(true);
@@ -19,11 +19,12 @@ export default function PillboxAssistant() {
 
   async function loadMedications() {
     try {
-      const settings = await fetch("/api/settings").then(r => r.json());
+      const settings = await fetch("/api/settings").then(r => r.json()).catch(() => ({}));
       setPerson(settings.person || {});
       const res = await fetch("/api/medications?active=true");
       if (res.ok) {
         const data = await res.json();
+        if (data.routine) setPerson(data.routine);
         setMedications(data.medications || []);
       }
     } catch (e) {
@@ -38,6 +39,8 @@ export default function PillboxAssistant() {
   }, []);
 
   async function handleRestock(med, additionalPills = 30) {
+    if (!navigator.onLine) return showToast("Reconnect before changing supply.", "warn");
+    if (!isUnlocked) return requestUnlock("/pillbox");
     setRefillingMedId(med.id);
     const newSupply = (med.currentSupply || 0) + additionalPills;
     try {
@@ -79,11 +82,11 @@ export default function PillboxAssistant() {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
         <div>
           <h1>📦 {t("pillboxTitle")}</h1>
-          <p style={{ color: "var(--muted)", margin: 0, fontSize: 14 }}>
+          <p style={{ color: "var(--muted)", margin: 0, fontSize: "calc(14px * var(--font-scale, 1))" }}>
             Step-by-step physical 7-day pill organizer loader &amp; supply tracker
           </p>
         </div>
-        <Link href="/" className="btn btn-secondary" style={{ textDecoration: "none", fontSize: 14 }}>
+        <Link href="/" className="btn btn-secondary" style={{ textDecoration: "none", fontSize: "calc(14px * var(--font-scale, 1))" }}>
           ← Back to Today
         </Link>
       </div>
@@ -100,7 +103,7 @@ export default function PillboxAssistant() {
           {/* Step Wizard Header */}
           <div className="card" style={{ background: "var(--accent-light)", border: "2px solid var(--accent)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
-              <span style={{ fontSize: 13, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.5, color: "var(--accent)" }}>
+              <span style={{ fontSize: "calc(13px * var(--font-scale, 1))", fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.5, color: "var(--accent)" }}>
                 Step {currentStep + 1} of {activeMeds.length}: Load Medication
               </span>
               <div style={{ display: "flex", gap: 8 }}>
@@ -108,7 +111,7 @@ export default function PillboxAssistant() {
                   className="btn btn-secondary"
                   disabled={currentStep === 0}
                   onClick={() => setCurrentStep(Math.max(0, currentStep - 1))}
-                  style={{ fontSize: 13, padding: "6px 14px" }}
+                  style={{ fontSize: "calc(13px * var(--font-scale, 1))", padding: "6px 14px" }}
                 >
                   ← Previous
                 </button>
@@ -116,7 +119,7 @@ export default function PillboxAssistant() {
                   className="btn btn-primary"
                   disabled={currentStep === activeMeds.length - 1}
                   onClick={() => setCurrentStep(Math.min(activeMeds.length - 1, currentStep + 1))}
-                  style={{ fontSize: 13, padding: "6px 14px" }}
+                  style={{ fontSize: "calc(13px * var(--font-scale, 1))", padding: "6px 14px" }}
                 >
                   Next Medication →
                 </button>
@@ -126,7 +129,7 @@ export default function PillboxAssistant() {
             {/* Instruction Callout */}
             {activeMed && (
               <div style={{ marginTop: 16 }}>
-                <h2 style={{ margin: "0 0 8px", fontSize: 24, color: "var(--text)" }}>
+                <h2 style={{ margin: "0 0 8px", fontSize: "calc(24px * var(--font-scale, 1))", color: "var(--text)" }}>
                   Take bottle: <strong>{activeMed.name}</strong> ({activeMed.strength})
                 </h2>
 
@@ -141,7 +144,7 @@ export default function PillboxAssistant() {
                       border: `2px solid ${activeColorMeta.border}`,
                     }}
                   />
-                  <span style={{ fontSize: 15, fontWeight: 600 }}>
+                  <span style={{ fontSize: "calc(15px * var(--font-scale, 1))", fontWeight: 600 }}>
                     Look for the {activeMed.pillColor?.toUpperCase() || "WHITE"} {activeMed.pillShape?.toUpperCase() || "TABLET"}
                   </span>
                 </div>
@@ -152,7 +155,7 @@ export default function PillboxAssistant() {
                     borderRadius: 10,
                     padding: "14px 18px",
                     border: "1px solid var(--border)",
-                    fontSize: 16,
+                    fontSize: "calc(16px * var(--font-scale, 1))",
                     lineHeight: 1.5,
                   }}
                 >
@@ -173,7 +176,7 @@ export default function PillboxAssistant() {
 
                 return (
                   <div className="pillbox-col" key={dayName}>
-                    <strong style={{ fontSize: 13, textTransform: "uppercase" }}>{dayName.slice(0, 3)}</strong>
+                    <strong style={{ fontSize: "calc(13px * var(--font-scale, 1))", textTransform: "uppercase" }}>{dayName.slice(0, 3)}</strong>
 
                     {/* Morning slot */}
                     <div
@@ -186,7 +189,7 @@ export default function PillboxAssistant() {
                       }}
                     >
                       <span>🌅 Morning</span>
-                      {morningActive && <span style={{ fontSize: 13, marginTop: 2 }}>+{unitsPerDose(activeMed) ? unitsPerDose(activeMed) * morningActive : activeMed.dose}</span>}
+                      {morningActive && <span style={{ fontSize: "calc(13px * var(--font-scale, 1))", marginTop: 2 }}>+{unitsPerDose(activeMed) ? unitsPerDose(activeMed) * morningActive : activeMed.dose}</span>}
                     </div>
 
                     {/* Afternoon slot */}
@@ -200,7 +203,7 @@ export default function PillboxAssistant() {
                       }}
                     >
                       <span>☀️ Noon</span>
-                      {afternoonActive && <span style={{ fontSize: 13, marginTop: 2 }}>+{unitsPerDose(activeMed) ? unitsPerDose(activeMed) * afternoonActive : activeMed.dose}</span>}
+                      {afternoonActive && <span style={{ fontSize: "calc(13px * var(--font-scale, 1))", marginTop: 2 }}>+{unitsPerDose(activeMed) ? unitsPerDose(activeMed) * afternoonActive : activeMed.dose}</span>}
                     </div>
 
                     {/* Night slot */}
@@ -214,7 +217,7 @@ export default function PillboxAssistant() {
                       }}
                     >
                       <span>🌙 Night</span>
-                      {nightActive && <span style={{ fontSize: 13, marginTop: 2 }}>+{unitsPerDose(activeMed) ? unitsPerDose(activeMed) * nightActive : activeMed.dose}</span>}
+                      {nightActive && <span style={{ fontSize: "calc(13px * var(--font-scale, 1))", marginTop: 2 }}>+{unitsPerDose(activeMed) ? unitsPerDose(activeMed) * nightActive : activeMed.dose}</span>}
                     </div>
                   </div>
                 );
@@ -241,7 +244,7 @@ export default function PillboxAssistant() {
                   <div className="dose-row">
                     <div style={{ flex: 1 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                        <strong style={{ fontSize: 18 }}>{med.name}</strong>
+                        <strong style={{ fontSize: "calc(18px * var(--font-scale, 1))" }}>{med.name}</strong>
                         {med.strength && <span style={{ color: "var(--muted)" }}>({med.strength})</span>}
                         {isLow && (
                           <span className="status-pill status-missed">LOW SUPPLY ({supply} LEFT)</span>
@@ -260,7 +263,7 @@ export default function PillboxAssistant() {
                             }}
                           />
                         </div>
-                        <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
+                        <div style={{ fontSize: "calc(12px * var(--font-scale, 1))", color: "var(--muted)", marginTop: 4 }}>
                           {supply} pills remaining ({daysRemaining(med) === null ? "unknown" : Math.floor(daysRemaining(med))} days estimated)
                         </div>
                       </div>
@@ -270,7 +273,7 @@ export default function PillboxAssistant() {
                       className="btn btn-primary"
                       onClick={() => handleRestock(med, 30)}
                       disabled={refillingMedId === med.id}
-                      style={{ fontSize: 14 }}
+                      style={{ fontSize: "calc(14px * var(--font-scale, 1))" }}
                     >
                       {refillingMedId === med.id ? "Updating…" : "+ Refill Bottle (+30 Pills)"}
                     </button>

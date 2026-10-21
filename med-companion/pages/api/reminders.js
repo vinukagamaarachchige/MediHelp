@@ -1,47 +1,161 @@
+import { constantEqual, activeDeviceIds } from "../../lib/auth";
+import { validateSubscription } from "../../lib/pushValidation";
+import { secureApi } from "../../lib/apiSecurity";
+import pushConfig from "../../scripts/push-config.cjs";
 import webpush from "web-push";
 import { readDB, writeDB } from "../../lib/db";
 import { buildTodaySchedule } from "../../lib/schedule";
 
-// Invoke once per minute using an authenticated external scheduler.
-export default async function handler(req, res) {
-  if (req.method !== "POST") return res.status(405).end();
-  if (!process.env.REMINDER_SECRET || req.headers.authorization !== `Bearer ${process.env.REMINDER_SECRET}`) return res.status(401).end();
+// Production startup invokes this every 30 seconds; an authenticated external scheduler can also use it.
+const jobState = (globalThis.__companionReminderJob ||= { running: false });
+async function runReminderJob(config, res) {
+  const deadline = Date.now() + 20000;
   const db = readDB();
   const now = new Date();
-  const sameDay = iso => new Date(iso).toDateString() === now.toDateString();
-  const missing = db.medications.filter(m => !m.retired && !db.doses.some(d => d.medicationId === m.id && sameDay(d.scheduledTime)));
+  const activeDevices = activeDeviceIds(db);
+  db.pushSubscriptions = (db.pushSubscriptions || []).filter((s) =>
+    activeDevices.has(s.deviceId),
+  );
+  const sameDay = (iso) => new Date(iso).toDateString() === now.toDateString();
+  const missing = db.medications.filter(
+    (m) =>
+      !m.retired &&
+      !db.doses.some(
+        (d) => d.medicationId === m.id && sameDay(d.scheduledTime),
+      ),
+  );
   db.doses.push(...buildTodaySchedule(db.person, missing));
-  const pushEnabled = process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY && process.env.VAPID_SUBJECT;
-  if (pushEnabled) webpush.setVapidDetails(process.env.VAPID_SUBJECT, process.env.VAPID_PUBLIC_KEY, process.env.VAPID_PRIVATE_KEY);
+  writeDB(db);
+  const pushEnabled = config.publicKey && config.privateKey;
+  if (pushEnabled)
+    webpush.setVapidDetails(
+      config.subject,
+      config.publicKey,
+      config.privateKey,
+    );
   const outcomes = [];
-  for (const dose of db.doses.filter(d => d.status === "pending" && sameDay(d.scheduledTime) && new Date(d.scheduledTime) <= now && now - new Date(d.scheduledTime) < 3600000)) {
-    const med = db.medications.find(m => m.id === dose.medicationId && !m.retired);
+  const expiredEndpoints = new Set();
+  for (const dose of db.doses.filter(
+    (d) =>
+      d.status === "pending" &&
+      sameDay(d.scheduledTime) &&
+      new Date(d.scheduledTime) <= now &&
+      now - new Date(d.scheduledTime) < 3600000,
+  )) {
+    if (Date.now() >= deadline) break;
+    const med = db.medications.find(
+      (m) => m.id === dose.medicationId && !m.retired,
+    );
     if (!med) continue;
     dose.reminderDeliveries ||= {};
     const body = `${med.name}: ${med.dose}. Open your schedule to check this dose.`;
-    if (pushEnabled) for (const subscription of [...(db.pushSubscriptions || [])]) {
-      if (dose.reminderDeliveries[subscription.endpoint]) continue;
-      try {
-        await webpush.sendNotification(subscription, JSON.stringify({title:"Medication reminder",body,tag:dose.id}));
-        dose.reminderDeliveries[subscription.endpoint] = now.toISOString();
-        outcomes.push({doseId:dose.id,channel:"push",status:"sent"});
-      } catch (error) {
-        if ([404,410].includes(error.statusCode)) db.pushSubscriptions = db.pushSubscriptions.filter(s => s.endpoint !== subscription.endpoint);
-        outcomes.push({doseId:dose.id,channel:"push",status:"failed"});
+    if (pushEnabled)
+      for (const subscription of [...(db.pushSubscriptions || [])]) {
+        if (Date.now() >= deadline) break;
+        const current = readDB();
+        if (!activeDeviceIds(current).has(subscription.deviceId)) {
+          expiredEndpoints.add(subscription.endpoint);
+          continue;
+        }
+        if (current.doses.find((d) => d.id === dose.id)?.status !== "pending")
+          break;
+        if (dose.reminderDeliveries[subscription.endpoint]) continue;
+        try {
+          const safeSubscription = validateSubscription(subscription);
+          await webpush.sendNotification(
+            safeSubscription,
+            JSON.stringify({
+              title: "Medication reminder",
+              body: "Open Companion to check your schedule.",
+              tag: dose.id,
+            }),
+            { timeout: 5000 },
+          );
+          dose.reminderDeliveries[subscription.endpoint] = now.toISOString();
+          outcomes.push({ doseId: dose.id, channel: "push", status: "sent" });
+        } catch (error) {
+          if (error.status === 400 || [404, 410].includes(error.statusCode))
+            expiredEndpoints.add(subscription.endpoint);
+          outcomes.push({ doseId: dose.id, channel: "push", status: "failed" });
+        }
       }
-    }
-    if (!dose.reminderDeliveries.whatsapp && process.env.WHATSAPP_TOKEN && process.env.WHATSAPP_PHONE_ID && process.env.WHATSAPP_TO && process.env.WHATSAPP_TEMPLATE && process.env.WHATSAPP_API_VERSION) {
+    if (
+      readDB().doses.find((d) => d.id === dose.id)?.status === "pending" &&
+      !dose.reminderDeliveries.whatsapp &&
+      process.env.WHATSAPP_TOKEN &&
+      process.env.WHATSAPP_PHONE_ID &&
+      process.env.WHATSAPP_TO &&
+      process.env.WHATSAPP_TEMPLATE &&
+      process.env.WHATSAPP_API_VERSION
+    ) {
       try {
-        const response = await fetch(`https://graph.facebook.com/${process.env.WHATSAPP_API_VERSION}/${process.env.WHATSAPP_PHONE_ID}/messages`, {
-          method:"POST", headers:{Authorization:`Bearer ${process.env.WHATSAPP_TOKEN}`,"Content-Type":"application/json"},
-          body:JSON.stringify({messaging_product:"whatsapp",to:process.env.WHATSAPP_TO,type:"template",template:{name:process.env.WHATSAPP_TEMPLATE,language:{code:process.env.WHATSAPP_LANGUAGE || "en_US"},components:[{type:"body",parameters:[{type:"text",text:body}]}]}})
-        });
+        const response = await fetch(
+          `https://graph.facebook.com/${process.env.WHATSAPP_API_VERSION}/${process.env.WHATSAPP_PHONE_ID}/messages`,
+          {
+            method: "POST",
+            signal: AbortSignal.timeout(10000),
+            headers: {
+              Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              messaging_product: "whatsapp",
+              to: process.env.WHATSAPP_TO,
+              type: "template",
+              template: {
+                name: process.env.WHATSAPP_TEMPLATE,
+                language: { code: process.env.WHATSAPP_LANGUAGE || "en_US" },
+                components: [
+                  { type: "body", parameters: [{ type: "text", text: body }] },
+                ],
+              },
+            }),
+          },
+        );
         if (!response.ok) throw new Error("Provider rejected reminder");
         dose.reminderDeliveries.whatsapp = now.toISOString();
-        outcomes.push({doseId:dose.id,channel:"whatsapp",status:"sent"});
-      } catch { outcomes.push({doseId:dose.id,channel:"whatsapp",status:"failed"}); }
+        outcomes.push({ doseId: dose.id, channel: "whatsapp", status: "sent" });
+      } catch {
+        outcomes.push({
+          doseId: dose.id,
+          channel: "whatsapp",
+          status: "failed",
+        });
+      }
     }
   }
-  writeDB(db);
-  return res.json({outcomes});
+  // Do not overwrite dose confirmations or stock changes made during network requests.
+  const latest = readDB();
+  for (const dose of db.doses) {
+    const saved = latest.doses.find((d) => d.id === dose.id);
+    if (saved)
+      saved.reminderDeliveries = {
+        ...saved.reminderDeliveries,
+        ...dose.reminderDeliveries,
+      };
+  }
+  latest.pushSubscriptions = (latest.pushSubscriptions || []).filter(
+    (s) => !expiredEndpoints.has(s.endpoint),
+  );
+  writeDB(latest);
+  return res.json({ outcomes });
 }
+
+async function handler(req, res) {
+  if (req.method !== "POST") return res.status(405).end();
+  const config = pushConfig();
+  if (!constantEqual(req.headers.authorization, `Bearer ${config.secret}`))
+    return res.status(401).end();
+  if (jobState.running)
+    return res
+      .status(409)
+      .json({ error: "A reminder job is already running." });
+  jobState.running = true;
+  try {
+    return await runReminderJob(config, res);
+  } finally {
+    jobState.running = false;
+  }
+}
+export default secureApi(handler, { role: "scheduler" });
+export const config = { api: { bodyParser: { sizeLimit: "32kb" } } };

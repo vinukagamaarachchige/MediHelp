@@ -1,7 +1,11 @@
+import { secureApi } from "../../lib/apiSecurity";
+import { requireCaregiver } from "../../lib/auth";
 import { readDB, writeDB, logAgentActivity } from "../../lib/db";
 
-export default function handler(req, res) {
+function handler(req, res) {
   const db = readDB();
+  res.setHeader("Cache-Control", "no-store");
+  if (!requireCaregiver(req, res, db)) return;
 
   if (req.method === "GET") {
     const logs = db.activityLogs || [];
@@ -20,3 +24,6 @@ export default function handler(req, res) {
 
   res.status(405).json({ error: "Use GET or POST" });
 }
+
+export default secureApi(handler, { role: "device" });
+export const config = {api:{bodyParser:{sizeLimit:"32kb"}}};

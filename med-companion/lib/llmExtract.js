@@ -1,189 +1,152 @@
-// Turns raw prescription text or prescription photo into a structured medication list.
-// Uses the Anthropic API (including Claude Vision) when ANTHROPIC_API_KEY is set;
-// otherwise falls back to an offline parser so the rest of the app is still testable offline.
-
+import { ApiError } from "./apiSecurity";
 export const AI_PRESCRIPTION_DISCLAIMER =
-  "Medical & AI Disclaimer: AI optical scanning and character recognition is an assistive tool and may misinterpret doctor handwriting, abbreviations, or dosage units. This tool does not provide medical advice. You MUST review and verify every extracted field against the original prescription slip before confirming.";
-
-const EXTRACTION_SYSTEM_PROMPT = `You extract medication info from prescription text or prescription images.
-Return ONLY a JSON array, no prose, no markdown fences. Each item:
-{
-  "name": string,
-  "strength": string,       // e.g. "500mg", "" if unknown
-  "dose": string,            // e.g. "1 tablet", "" if unknown
-  "frequency": string,       // e.g. "twice daily", "once daily"
-  "timing": "with_food" | "empty_stomach" | "any",
-  "duration": string,        // e.g. "7 days", "ongoing"
-  "doctor": string,          // "" if unknown
-  "confidence": number       // 0-1, your confidence in this extraction based on image/text clarity
-}
-Never include dosage advice or commentary. Only extract what is explicitly written in the prescription.`;
-
-function calculateConfidenceMeta(items = []) {
-  if (!items || items.length === 0) {
-    return {
-      overallConfidence: 0,
-      confidencePct: 0,
-      confidenceLabel: "No medications detected",
-      confidenceGrade: "low",
-    };
-  }
-
-  const sum = items.reduce((acc, it) => acc + (typeof it.confidence === "number" ? it.confidence : 0.5), 0);
-  const avg = Math.round((sum / items.length) * 100) / 100;
-  const pct = Math.round(avg * 100);
-
-  let label = "High Confidence";
-  let grade = "high";
-  if (pct < 60) {
-    label = "Low Confidence — Needs Thorough Review";
-    grade = "low";
-  } else if (pct < 80) {
-    label = "Moderate Confidence — Review Recommended";
-    grade = "medium";
-  }
-
+  "Prescription extraction may misread names, units or handwriting. Verify every field against the original prescription with your caregiver or pharmacist before saving.";
+const prompt = `Extract only what is explicitly written in the prescription. Return a JSON array of objects with name, strength, dose, frequency, timing (with_food, empty_stomach, bedtime, any), duration, doctor and confidence (0 to 1). Unknown text fields must be empty strings. Do not guess medicines, doses, frequency or duration. No advice or extra fields.`;
+function confidence(items) {
+  const score =
+    items.reduce((sum, item) => sum + item.confidence, 0) /
+    Math.max(1, items.length);
+  const pct = Math.round(score * 100);
   return {
-    overallConfidence: avg,
+    overallConfidence: score,
     confidencePct: pct,
-    confidenceLabel: label,
-    confidenceGrade: grade,
+    confidenceLabel: pct < 80 ? "Review required" : "Verify against original",
+    confidenceGrade: pct < 60 ? "low" : pct < 80 ? "medium" : "high",
   };
 }
-
-function fallbackParse(text) {
-  const lines = (text || "")
-    .split("\n")
-    .map((l) => l.trim())
-    .filter(Boolean);
-
-  if (lines.length === 0) {
-    return [
-      {
-        name: "Amoxicillin",
-        strength: "500mg",
-        dose: "1 capsule",
-        frequency: "three times a day",
-        timing: "with_food",
-        duration: "7 days",
-        doctor: "Dr. K. Perera",
-        confidence: 0.85,
-      },
-      {
-        name: "Paracetamol",
-        strength: "500mg",
-        dose: "2 tablets",
-        frequency: "twice daily",
-        timing: "any",
-        duration: "5 days",
-        doctor: "Dr. K. Perera",
-        confidence: 0.9,
-      },
-    ];
-  }
-
-  return lines.map((line) => {
-    const strengthMatch = line.match(/(\d+\s?mg|\d+\s?mcg|\d+\s?ml)/i);
-    const freqMatch = line.match(
-      /(once|twice|three times|four times)\s+(a\s+)?day|daily|every\s+\d+\s+hours/i
+function normalize(input) {
+  if (!Array.isArray(input) || !input.length || input.length > 30)
+    throw new ApiError(
+      "No valid medications were extracted. Enter and verify them manually.",
+      422,
     );
-    const foodMatch = /with food|after meals|after food/i.test(line)
-      ? "with_food"
-      : /empty stomach|before food|before meals/i.test(line)
-      ? "empty_stomach"
+  return input.map((item) => {
+    if (!item || typeof item !== "object" || Array.isArray(item))
+      throw new ApiError(
+        "Extraction could not be validated. Enter medicines manually.",
+        422,
+      );
+    const result = {};
+    for (const [key, max] of [
+      ["name", 120],
+      ["strength", 100],
+      ["dose", 100],
+      ["frequency", 80],
+      ["duration", 80],
+      ["doctor", 120],
+    ]) {
+      if (
+        item[key] !== undefined &&
+        (typeof item[key] !== "string" || item[key].length > max)
+      )
+        throw new ApiError(
+          "Extraction contains invalid fields. Review the original prescription.",
+          422,
+        );
+      result[key] = (item[key] || "").trim();
+    }
+    if (!result.name)
+      throw new ApiError(
+        "An extracted medicine has no readable name. Enter it manually.",
+        422,
+      );
+    result.timing = ["with_food", "empty_stomach", "bedtime", "any"].includes(
+      item.timing,
+    )
+      ? item.timing
       : "any";
-    const doctorMatch = line.match(/dr\.?\s*[a-z]+/i);
-    const name = line.split(",")[0].replace(strengthMatch?.[0] || "", "").trim();
-
-    return {
-      name: name || line,
-      strength: strengthMatch ? strengthMatch[0] : "",
-      dose: "1 tablet",
-      frequency: freqMatch ? freqMatch[0] : "once daily",
-      timing: foodMatch,
-      duration: "30 days",
-      doctor: doctorMatch ? doctorMatch[0] : "",
-      confidence: 0.55, // offline text parser — flagged for review
-    };
+    result.confidence = Number.isFinite(item.confidence)
+      ? Math.max(0, Math.min(1, item.confidence))
+      : 0;
+    if (!result.dose || !result.frequency)
+      result.confidence = Math.min(0.4, result.confidence);
+    return result;
   });
 }
-
-export async function extractMedications({ text, imageBase64, imageType = "image/jpeg" }) {
+function parseText(text) {
+  const lines = text
+    .split("\n")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (!lines.length || lines.length > 30)
+    throw new ApiError("Provide 1–30 medication lines.");
+  return normalize(
+    lines.map((line) => {
+      const strength = line.match(/\b\d+(?:\.\d+)?\s*(?:mcg|mg|ml)\b/i);
+      const dose = line.match(
+        /\b\d+(?:\.\d+)?\s*(?:tablets?|tabs?|capsules?|caps?|ml)\b/i,
+      );
+      const frequency = line.match(
+        /(?:once|twice|three times|four times)\s+(?:a\s+day|daily)|\bdaily\b/i,
+      );
+      const duration = line.match(/\b\d+\s*(?:days?|weeks?|months?)\b/i);
+      return {
+        name: (strength ? line.slice(0, strength.index) : line.split(/[,;]/)[0])
+          .replace(/^\d+[.)]\s*/, "")
+          .replace(/[ -]+$/, "")
+          .trim(),
+        strength: strength?.[0] || "",
+        dose: dose?.[0] || "",
+        frequency: frequency?.[0] || "",
+        duration: duration?.[0] || "",
+        timing: /with food|with meals|after meals|after food/i.test(line)
+          ? "with_food"
+          : /before food|before meals|empty stomach/i.test(line)
+            ? "empty_stomach"
+            : /at night|bedtime/i.test(line)
+              ? "bedtime"
+              : "any",
+        doctor: "",
+        confidence: 0.4,
+      };
+    }),
+  );
+}
+export async function extractMedications({
+  text,
+  imageBase64,
+  imageType = "image/jpeg",
+}) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
-
-  // Handle scanned image without API key (Simulated Vision AI Extraction)
-  if (imageBase64 && !apiKey) {
-    const sampleItems = [
-      {
-        name: "Atorvastatin",
-        strength: "20mg",
-        dose: "1 tablet",
-        frequency: "once daily",
-        timing: "any",
-        duration: "30 days",
-        doctor: "Dr. K. Perera",
-        confidence: 0.88,
-      },
-      {
-        name: "Metformin",
-        strength: "500mg",
-        dose: "1 tablet",
-        frequency: "twice daily",
-        timing: "with_food",
-        duration: "30 days",
-        doctor: "Dr. K. Perera",
-        confidence: 0.82,
-      },
-    ];
-
-    const confMeta = calculateConfidenceMeta(sampleItems);
-    return {
-      items: sampleItems,
-      source: "simulated_vision_scan",
-      disclaimer: AI_PRESCRIPTION_DISCLAIMER,
-      isImageExtraction: true,
-      ...confMeta,
-    };
-  }
-
+  if (imageBase64 && !apiKey)
+    throw new ApiError(
+      "Image extraction is not configured. Enter prescription text or add medicines manually.",
+      503,
+    );
   if (!apiKey) {
-    const items = fallbackParse(text);
-    const confMeta = calculateConfidenceMeta(items);
+    const items = parseText(text);
     return {
       items,
       source: "offline_fallback",
       disclaimer: AI_PRESCRIPTION_DISCLAIMER,
       isImageExtraction: false,
-      ...confMeta,
+      ...confidence(items),
     };
   }
-
-  // Build message content for Anthropic API
-  const content = [];
-  if (imageBase64) {
-    const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, "");
-    content.push({
-      type: "image",
-      source: {
-        type: "base64",
-        media_type: imageType,
-        data: base64Data,
-      },
-    });
-    content.push({
-      type: "text",
-      text: "Please extract all medications from this prescription photo. Estimate a confidence score (0.0 to 1.0) for each medication based on handwriting legibility and clarity.",
-    });
-  } else {
-    content.push({
-      type: "text",
-      text: text || "",
-    });
-  }
-
+  const content = imageBase64
+    ? [
+        {
+          type: "image",
+          source: {
+            type: "base64",
+            media_type: imageType,
+            data: imageBase64.replace(
+              /^data:image\/(?:jpeg|png|webp);base64,/,
+              "",
+            ),
+          },
+        },
+        {
+          type: "text",
+          text: "Extract only clearly readable medication details.",
+        },
+      ]
+    : [{ type: "text", text }];
+  let response;
   try {
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
+    response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
+      signal: AbortSignal.timeout(20000),
       headers: {
         "Content-Type": "application/json",
         "x-api-key": apiKey,
@@ -191,46 +154,43 @@ export async function extractMedications({ text, imageBase64, imageType = "image
       },
       body: JSON.stringify({
         model: "claude-sonnet-4-6",
-        max_tokens: 1500,
-        system: EXTRACTION_SYSTEM_PROMPT,
+        max_tokens: 2000,
+        system: prompt,
         messages: [{ role: "user", content }],
       }),
     });
-
-    if (!response.ok) {
-      const fallbackItems = fallbackParse(text);
-      const confMeta = calculateConfidenceMeta(fallbackItems);
-      return {
-        items: fallbackItems,
-        source: "offline_fallback_after_error",
-        disclaimer: AI_PRESCRIPTION_DISCLAIMER,
-        isImageExtraction: !!imageBase64,
-        ...confMeta,
-      };
-    }
-
-    const data = await response.json();
-    const raw = data.content?.map((b) => b.text || "").join("") || "[]";
-    const cleaned = raw.replace(/```json|```/g, "").trim();
-    const items = JSON.parse(cleaned);
-    const confMeta = calculateConfidenceMeta(items);
-
-    return {
-      items,
-      source: imageBase64 ? "llm_vision" : "llm",
-      disclaimer: AI_PRESCRIPTION_DISCLAIMER,
-      isImageExtraction: !!imageBase64,
-      ...confMeta,
-    };
-  } catch (err) {
-    const fallbackItems = fallbackParse(text);
-    const confMeta = calculateConfidenceMeta(fallbackItems);
-    return {
-      items: fallbackItems,
-      source: "offline_fallback_exception",
-      disclaimer: AI_PRESCRIPTION_DISCLAIMER,
-      isImageExtraction: !!imageBase64,
-      ...confMeta,
-    };
+  } catch {
+    throw new ApiError(
+      "The extraction provider is unavailable. Enter and verify medicines manually.",
+      503,
+    );
   }
+  if (!response.ok)
+    throw new ApiError(
+      "The extraction provider could not process this prescription. Enter it manually or retry later.",
+      503,
+    );
+  let items;
+  try {
+    const data = await response.json();
+    const raw =
+      data.content
+        ?.map((b) => (typeof b.text === "string" ? b.text : ""))
+        .join("") || "[]";
+    if (raw.length > 64000) throw new Error();
+    items = normalize(JSON.parse(raw.replace(/```json|```/g, "").trim()));
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    throw new ApiError(
+      "The extracted response could not be validated. Enter medicines manually.",
+      422,
+    );
+  }
+  return {
+    items,
+    source: imageBase64 ? "llm_vision" : "llm",
+    disclaimer: AI_PRESCRIPTION_DISCLAIMER,
+    isImageExtraction: !!imageBase64,
+    ...confidence(items),
+  };
 }
