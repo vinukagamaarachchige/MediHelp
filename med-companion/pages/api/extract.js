@@ -18,14 +18,14 @@ async function handler(req, res) {
     imageBase64,
     imageType,
   });
-  const db = readDB();
+  const db = (await readDB());
   logAgentActivity(
     db,
     "intake",
     "Prescription extraction completed; original must be verified",
     { source: result.source, medicationCount: result.items.length },
   );
-  writeDB(db);
+  await writeDB(db);
   return res.json(result);
 }
 export default secureApi(handler, {

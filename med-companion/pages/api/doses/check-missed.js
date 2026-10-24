@@ -6,10 +6,10 @@ import { readDB, writeDB, nextId, logAgentActivity } from "../../../lib/db";
 const WINDOW_MINUTES_NORMAL = 30;
 const WINDOW_MINUTES_CRITICAL = 10;
 
-function handler(req, res) {
+async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Use POST" });
 
-  const db = readDB();
+  const db = (await readDB());
   const medById = Object.fromEntries(db.medications.map((m) => [m.id, m]));
   const now = new Date();
   const newAlerts = [];
@@ -70,7 +70,7 @@ function handler(req, res) {
     { checkedAt: now.toISOString(), escalatedCount: newAlerts.length }
   );
 
-  writeDB(db);
+  await writeDB(db);
   res.status(200).json({ checkedAt: now.toISOString(), newAlerts });
 }
 

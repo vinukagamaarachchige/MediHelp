@@ -4,7 +4,7 @@ import { isOverdue } from "../../lib/doseState";
 
 async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).end();
-  const db = readDB();
+  const db = (await readDB());
   const overdue = db.doses.filter(d => new Date(d.scheduledTime).toDateString() === new Date().toDateString() && isOverdue({...d,medication:db.medications.find(m=>m.id===d.medicationId)}));
   if (!overdue.length) return res.status(409).json({error:"No overdue doses need attention."});
   const doseIds = overdue.map(d => d.id);
@@ -13,7 +13,7 @@ async function handler(req, res) {
   const alert = {id:nextId("alert"),type:"caregiver_help",doseIds,medicationName:overdue.map(d=>db.medications.find(m=>m.id===d.medicationId)?.name || "Medication").join(", "),criticality:overdue.some(d=>db.medications.find(m=>m.id===d.medicationId)?.criticality==="critical")?"critical":"normal",timestamp:new Date().toISOString(),acknowledged:false,message:"The elder requested help with overdue medication.",log:[{step:"elder_requested_caregiver_help",at:new Date().toISOString()}]};
   db.alerts.unshift(alert);
   logAgentActivity(db,"escalate",alert.message,{alertId:alert.id,doseIds});
-  writeDB(db);
+  await writeDB(db);
   // Optional external channel; the in-app alert is durable before any network work.
   let external = "not_configured";
   if (process.env.CAREGIVER_WHATSAPP_TO && process.env.WHATSAPP_TOKEN && process.env.WHATSAPP_PHONE_ID && process.env.CAREGIVER_WHATSAPP_TEMPLATE && process.env.WHATSAPP_API_VERSION) {

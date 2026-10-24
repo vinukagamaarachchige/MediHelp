@@ -10,8 +10,8 @@ import { readDB, writeDB, nextId, logAgentActivity } from "../../lib/db";
 import { buildTodaySchedule, previewScheduleForMeds } from "../../lib/schedule";
 import { checkMedicationInteractions } from "../../lib/interactions";
 
-function handler(req, res) {
-  const db = readDB();
+async function handler(req, res) {
+  const db = (await readDB());
   if (req.method !== "GET" && !requireCaregiver(req, res, db)) return;
 
   if (req.method === "GET") {
@@ -136,7 +136,7 @@ function handler(req, res) {
       },
     );
 
-    writeDB(db);
+    await writeDB(db);
     return res.status(200).json({
       medications: withIds,
       doses: newDoses.map(publicDose),

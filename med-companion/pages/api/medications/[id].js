@@ -6,9 +6,9 @@ import { daysRemaining } from "../../../lib/supply";
 import { readDB, writeDB, logAgentActivity } from "../../../lib/db";
 import { checkMedicationInteractions } from "../../../lib/interactions";
 
-function handler(req, res) {
+async function handler(req, res) {
   const { id } = req.query;
-  const db = readDB();
+  const db = (await readDB());
   if (req.method !== "GET" && !requireCaregiver(req, res, db)) return;
 
   const medIndex = db.medications.findIndex((m) => m.id === id);
@@ -76,7 +76,7 @@ function handler(req, res) {
       { medicationId: id, changedFields: Object.keys(updates) },
     );
 
-    writeDB(db);
+    await writeDB(db);
     return res.status(200).json({ medication: publicMedication(updated) });
   }
 
@@ -102,7 +102,7 @@ function handler(req, res) {
       { medicationId: id, retiredAt: existing.retiredAt },
     );
 
-    writeDB(db);
+    await writeDB(db);
     return res.status(200).json({
       message: `Medication '${existing.name}' has been retired.`,
       medication: publicMedication(existing),

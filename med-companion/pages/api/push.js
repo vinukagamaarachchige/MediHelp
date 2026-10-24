@@ -3,12 +3,12 @@ import pushConfig from "../../scripts/push-config.cjs";
 import { readDB, writeDB } from "../../lib/db";
 import { deviceId } from "../../lib/auth";
 import { validateSubscription } from "../../lib/pushValidation";
-function handler(req, res) {
+async function handler(req, res) {
   if (req.method === "GET")
     return res.json({ publicKey: pushConfig().publicKey });
   if (req.method !== "POST") return res.status(405).end();
   const subscription = validateSubscription(req.body);
-  const db = readDB();
+  const db = (await readDB());
   const owner = deviceId(req, db);
   const existing = (db.pushSubscriptions || []).find(
     (s) => s.endpoint === subscription.endpoint,
@@ -21,7 +21,7 @@ function handler(req, res) {
   if (list.length >= 40 || list.filter((s) => s.deviceId === owner).length >= 3)
     throw new ApiError("Notification subscription limit reached.", 429);
   db.pushSubscriptions = [...list, { ...subscription, deviceId: owner }];
-  writeDB(db);
+  await writeDB(db);
   return res.json({ ok: true });
 }
 export default secureApi(handler, { role: "device", key: "push", limit: 20 });

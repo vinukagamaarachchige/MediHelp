@@ -10,7 +10,7 @@ import { buildTodaySchedule } from "../../lib/schedule";
 const jobState = (globalThis.__companionReminderJob ||= { running: false });
 async function runReminderJob(config, res) {
   const deadline = Date.now() + 20000;
-  const db = readDB();
+  const db = (await readDB());
   const now = new Date();
   const activeDevices = activeDeviceIds(db);
   db.pushSubscriptions = (db.pushSubscriptions || []).filter((s) =>
@@ -25,7 +25,7 @@ async function runReminderJob(config, res) {
       ),
   );
   db.doses.push(...buildTodaySchedule(db.person, missing));
-  writeDB(db);
+  await writeDB(db);
   const pushEnabled = config.publicKey && config.privateKey;
   if (pushEnabled)
     webpush.setVapidDetails(
@@ -52,7 +52,7 @@ async function runReminderJob(config, res) {
     if (pushEnabled)
       for (const subscription of [...(db.pushSubscriptions || [])]) {
         if (Date.now() >= deadline) break;
-        const current = readDB();
+        const current = (await readDB());
         if (!activeDeviceIds(current).has(subscription.deviceId)) {
           expiredEndpoints.add(subscription.endpoint);
           continue;
@@ -80,7 +80,7 @@ async function runReminderJob(config, res) {
         }
       }
     if (
-      readDB().doses.find((d) => d.id === dose.id)?.status === "pending" &&
+      (await readDB()).doses.find((d) => d.id === dose.id)?.status === "pending" &&
       !dose.reminderDeliveries.whatsapp &&
       process.env.WHATSAPP_TOKEN &&
       process.env.WHATSAPP_PHONE_ID &&
@@ -125,7 +125,7 @@ async function runReminderJob(config, res) {
     }
   }
   // Do not overwrite dose confirmations or stock changes made during network requests.
-  const latest = readDB();
+  const latest = (await readDB());
   for (const dose of db.doses) {
     const saved = latest.doses.find((d) => d.id === dose.id);
     if (saved)
@@ -137,7 +137,7 @@ async function runReminderJob(config, res) {
   latest.pushSubscriptions = (latest.pushSubscriptions || []).filter(
     (s) => !expiredEndpoints.has(s.endpoint),
   );
-  writeDB(latest);
+  await writeDB(latest);
   return res.json({ outcomes });
 }
 

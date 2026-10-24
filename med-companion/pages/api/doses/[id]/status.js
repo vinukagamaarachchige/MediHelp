@@ -3,7 +3,7 @@ import { secureApi } from "../../../../lib/apiSecurity";
 import { unitsPerDose, daysRemaining } from "../../../../lib/supply";
 import { readDB, writeDB, nextId, logAgentActivity } from "../../../../lib/db";
 
-function handler(req, res) {
+async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Use POST" });
 
   const { id } = req.query;
@@ -15,7 +15,7 @@ function handler(req, res) {
       .json({ error: "status must be 'taken' or 'skipped'" });
   }
 
-  const db = readDB();
+  const db = (await readDB());
   const dose = db.doses.find((d) => d.id === id);
   if (!dose) return res.status(404).json({ error: "Dose not found" });
 
@@ -103,7 +103,7 @@ function handler(req, res) {
     },
   );
 
-  writeDB(db);
+  await writeDB(db);
   res
     .status(200)
     .json({ dose: publicDose(dose), medication: publicMedication(med) });

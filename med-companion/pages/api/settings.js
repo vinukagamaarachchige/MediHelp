@@ -55,8 +55,8 @@ function appearance(value) {
     throw new ApiError("Invalid appearance preferences.");
   return value;
 }
-function handler(req, res) {
-  const db = readDB();
+async function handler(req, res) {
+  const db = (await readDB());
   if (req.method === "GET") {
     const authorized = isDevice(req, db);
     const safe = publicPerson(db.person);
@@ -79,7 +79,7 @@ function handler(req, res) {
   if (req.method === "DELETE") {
     if (req.query.forget === "true") {
       forgetDevice(req, res, db);
-      writeDB(db);
+      await writeDB(db);
     } else endSession(req, res);
     return res.json({
       locked: true,
@@ -102,7 +102,7 @@ function handler(req, res) {
     delete db.person.pin;
     db.devices = [];
     startSession(req, res, db);
-    writeDB(db);
+    await writeDB(db);
     return res.json({
       valid: true,
       deviceAuthorized: true,
@@ -128,12 +128,12 @@ function handler(req, res) {
           ? db.authFailures
           : { count: 0, until: now + 300000 };
       db.authFailures = { count: old.count + 1, until: old.until };
-      writeDB(db);
+      await writeDB(db);
       return res.status(401).json({ valid: false });
     }
     delete db.authFailures;
     startSession(req, res, db);
-    writeDB(db);
+    await writeDB(db);
     return res.json({
       valid: true,
       deviceAuthorized: true,
@@ -145,7 +145,7 @@ function handler(req, res) {
       throw new ApiError("Save appearance separately from caregiver settings.");
     if (!requireDevice(req, res, db)) return;
     Object.assign(db.person, appearance(preferences));
-    writeDB(db);
+    await writeDB(db);
     return res.json({ person: publicPerson(db.person) });
   }
   if (!requireCaregiver(req, res, db)) return;
@@ -278,7 +278,7 @@ function handler(req, res) {
     fields: Object.keys(person || {}).filter((k) => k !== "pin"),
     caregiversCount: db.caregivers.length,
   });
-  writeDB(db);
+  await writeDB(db);
   return res.json({
     message: "Settings saved",
     person: publicPerson(db.person),

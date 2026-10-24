@@ -105,8 +105,8 @@ export function secureApi(
     try {
       checkRequest(req);
       rateLimit(req, key, limit, windowMs);
-      if (role === "device" && !requireDevice(req, res, readDB())) return;
-      if (role === "caregiver" && !requireCaregiver(req, res, readDB())) return;
+      if (role === "device" && !requireDevice(req, res, (await readDB()))) return;
+      if (role === "caregiver" && !requireCaregiver(req, res, (await readDB()))) return;
       return await handler(req, res);
     } catch (error) {
       if (res.headersSent) return;

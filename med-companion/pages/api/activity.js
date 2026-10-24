@@ -2,8 +2,8 @@ import { secureApi } from "../../lib/apiSecurity";
 import { requireCaregiver } from "../../lib/auth";
 import { readDB, writeDB, logAgentActivity } from "../../lib/db";
 
-function handler(req, res) {
-  const db = readDB();
+async function handler(req, res) {
+  const db = (await readDB());
   res.setHeader("Cache-Control", "no-store");
   if (!requireCaregiver(req, res, db)) return;
 
@@ -17,7 +17,7 @@ function handler(req, res) {
     if (action === "clear") {
       db.activityLogs = [];
       logAgentActivity(db, "action", "Activity log cleared by caregiver");
-      writeDB(db);
+      await writeDB(db);
       return res.status(200).json({ message: "Logs cleared" });
     }
   }

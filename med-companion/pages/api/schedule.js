@@ -16,10 +16,10 @@ function formatDateKey(date) {
   return date.toISOString().split("T")[0];
 }
 
-function handler(req, res) {
+async function handler(req, res) {
   if (req.method !== "GET") return res.status(405).json({ error: "Use GET" });
 
-  const db = readDB();
+  const db = (await readDB());
   if (["history", "adherence"].includes(req.query.range)) { res.setHeader("Cache-Control", "no-store"); if (!requireCaregiver(req, res, db)) return; }
   const medById = Object.fromEntries(db.medications.map((m) => [m.id, m]));
   const activeMeds = db.medications.filter((m) => !m.retired);
@@ -27,7 +27,7 @@ function handler(req, res) {
   const missingMeds = activeMeds.filter(m => !db.doses.some(d => d.medicationId === m.id && isSameDay(new Date(d.scheduledTime), now)));
   if (missingMeds.length) {
     db.doses.push(...buildTodaySchedule(db.person, missingMeds));
-    writeDB(db);
+    await writeDB(db);
   }
 
   // If 7-day adherence history requested for the caregiver chart

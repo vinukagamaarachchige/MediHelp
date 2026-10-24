@@ -1,0 +1,27 @@
+# Replaces the local setInterval reminder loop (scripts/start-with-reminders.cjs)
+# for the Vercel deployment, since Vercel doesn't run long-lived processes
+# and its free Cron Jobs only run once a day (too infrequent for dose
+# reminders). This hits the deployed /api/reminders endpoint on a schedule
+# instead, authenticated the same way the local loop was.
+#
+# Setup: in the GitHub repo, go to Settings -> Secrets and variables ->
+# Actions, and add:
+#   APP_URL          e.g. https://medihelp.vercel.app
+#   REMINDER_SECRET  the same value set as REMINDER_SECRET in Vercel's
+#                     environment variables (at least 32 characters)
+name: Reminder job
+
+on:
+  schedule:
+    - cron: "*/5 * * * *" # every 5 minutes
+  workflow_dispatch: {} # lets you trigger it manually from the Actions tab
+
+jobs:
+  trigger-reminders:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call /api/reminders
+        run: |
+          curl -sf -X POST "${{ secrets.APP_URL }}/api/reminders" \
+            -H "Authorization: Bearer ${{ secrets.REMINDER_SECRET }}" \
+            --max-time 25
